@@ -211,8 +211,16 @@ class CentralWidget(QWidget):
         l_weights.addWidget(self.drag)
         g_weights.setLayout(l_weights)
 
+        # Create group for model properties
+        g_model = QGroupBox("Model Properties Definitions", self)
+        l_model = QVBoxLayout()
+        l_model.addWidget(self.model)
+        l_model.addWidget(self.optimizer)
+        g_model.setLayout(l_model)
+
         # ADD widget to main layout
         v_box.addWidget(g_weights)
+        v_bo
         self.setLayout(v_box)
 
 
