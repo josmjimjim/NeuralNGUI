@@ -2,16 +2,6 @@ import sys
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget
 
 
-class CentralWidget(QWidget):
-
-    
-
-
-
-
-
-
-
 class MainWindow(QMainWindow):
 
     def __init__(self, parent=None):
@@ -24,8 +14,6 @@ class MainWindow(QMainWindow):
         self.setWindowTitle('Neuroscience Lab')
         # Display menu bar and MainWindow with show method
         self.show()
-
-
 
 
 if __name__ == '__main__':

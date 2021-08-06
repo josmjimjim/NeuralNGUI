@@ -1,49 +1,13 @@
 import sys, os
-from PyQt5.QtWidgets import  (QApplication, QWidget, QListWidget,
+from PyQt5.QtWidgets import (QApplication, QWidget, QListWidget,
     QVBoxLayout, QListWidgetItem, QGridLayout, QGroupBox, QLineEdit, QLabel,
-    QPushButton, QMessageBox, QFileDialog, QCheckBox)
+    QPushButton, QMessageBox, QFileDialog, QCheckBox, QComboBox, QSpinBox, QPlainTextEdit)
 from PyQt5.QtCore import QSize, Qt, pyqtSlot, pyqtSignal
 from PyQt5.QtGui import QIcon, QFont, QPainter, QColor
 
-class CentralWidget(QWidget):
-
-    __slots__ = ['drag', 'file', 'pretrained', ]
-
-    accept_signal = pyqtSignal(str, bool)
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        # Create url signal
-        self.pretrained = True
-
-        # Create instances of object to call in initializeUI
-        self.drag = DragandDropFiles(self)
-        self.file = FileDirectorySystemBar(self)
-
-        # Conect the signal and slot
-        self.drag.file_directory.connect(self.file.recibeData)
-        self.file.file_directory.connect(self.drag.updateIcon)
-
-        # Initialize and display window
-        self.initializeUI()
-
-    def initializeUI(self):
-        # Create vertical main layout
-        v_box = QVBoxLayout()
-
-        # Create group for the file directory drop
-        group = QGroupBox("Drop the weights here", self)
-        layout = QVBoxLayout(group)
-        layout.addWidget(self.file)
-        layout.addWidget(self.drag)
-        group.setLayout(layout)
-
-        # ADD widget to main layout
-        v_box.addWidget(group)
-        self.setLayout(v_box)
 
 class DragandDropFiles(QListWidget):
-    __slots__ = ['file_path', ]
+
     file_directory = pyqtSignal(str)
 
     def __init__(self, parent=None):
@@ -117,7 +81,6 @@ class DragandDropFiles(QListWidget):
             pass
 
 class FileDirectorySystemBar(QWidget):
-    __slots__ = ['file', 'directory', ]
 
     file_directory = pyqtSignal(str)
 
@@ -178,6 +141,82 @@ class FileDirectorySystemBar(QWidget):
                 QMessageBox().warning(self, "",
                         "Error, the file cannot be open because its extension is not valid",
                         QMessageBox.Ok, QMessageBox.Ok)
+
+class SelectOptions(QComboBox):
+
+    def __init__(self, opt_list, parent=None):
+        super().__init__(parent)
+        for items in opt_list:
+            self.addItem(items)
+
+class DefineBESize(QSpinBox):
+
+    be_size = pyqtSignal(int)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setRange(0, 1000)
+        self.valueChanged.connect(self.sendBESize)
+
+    def sendBESize(self):
+        self.be_size.emit(self.value())
+
+class LogsOutProcess(QPlainTextEdit):
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setReadOnly(True)
+
+    @pyqtSlot(str)
+    def messagesOUT(self, s):
+        self.appendPlainText(s)
+
+class CentralWidget(QWidget):
+
+    __model_list = ('resnet18', 'inceptionv3','googlenet',
+                    'resnet34', 'resnet152', 'wideresnet50',
+                    'alexnet', 'vgg16', 'mobilenetv2',
+                    'mobilenet_v3_large','mobilenetv3small',
+                    'mnasnet', 'vgg19',)
+    __optim_list = ('Adam', 'AdamW', 'SGD', 'LBFGS',
+                    'SparseAdam', 'RMSprop',)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        # Create instances of object to call in initializeUI
+        self.drag = DragandDropFiles(self)
+        self.file = FileDirectorySystemBar(self)
+        self.model = SelectOptions(self.__model_list, self)
+        self.optimizer = SelectOptions(self.__optim_list, self)
+        self.batch = DefineBESize(self)
+        self.epochs = DefineBESize(self)
+        self.logs = LogsOutProcess(self)
+
+        # Conect the signal and slot
+        self.drag.file_directory.connect(self.file.recibeData)
+        self.file.file_directory.connect(self.drag.updateIcon)
+
+        # Initialize and display window
+        self.initializeUI()
+
+    def initializeUI(self):
+        # Create vertical main layout
+        v_box = QVBoxLayout()
+
+        # Create group for the file directory and drop
+        g_weights = QGroupBox("Weights Finder", self)
+        l_weights = QVBoxLayout()
+        l_weights.addWidget(self.file)
+        l_weights.addWidget(self.drag)
+        g_weights.setLayout(l_weights)
+
+        # ADD widget to main layout
+        v_box.addWidget(g_weights)
+        self.setLayout(v_box)
+
+
+
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
