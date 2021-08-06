@@ -2,35 +2,36 @@ import os
 import torch
 from torch import nn
 from collections import Counter, OrderedDict
-from torchvision import transforms, datasets, models # transform data
+from torchvision import transforms, datasets, models
 
 
 class NeuralNetwork(object):
 
     # Dictionary of classifier parameters
-    __dict_cp = OrderedDict([
-        ('resnet18', (512, 128)),
-        ('alexnet', (9216, 4096)),
-        ('vgg16', (25088, 4096)),
-        ('densenet161', (2208, 552)),
-        ('inception_v3', (2048, 512)),
-        ('googlenet', (1024, 256)),
-        ('shufflenet_v2_x1_0', (1024, 256)),
-        ('mobilenet_v2', (1280, 320)),
-        ('mobilenet_v3_large', (960, 240)),
-        ('mobilenet_v3_small', (576, 144)),
-        ('resnext50_32x4d', (2048, 512)),
-        ('wide_resnet50_2', (2048, 512)),
-        ('mnasnet1_0', (1280, 320)),
-    ])
+    __dict_cp = {
+        'resnet18': (512, 128),
+        'alexnet': (9216, 4096),
+        'vgg16': (25088, 4096),
+        'resnet34': (512, 128),
+        'inceptionv3': (2048, 512),
+        'googlenet': (1024, 256),
+        'vgg19': (25088, 4096),
+        'mobilenetv2': (1280, 320),
+        'mobilenetv3large': (960, 240),
+        'mobilenetv3small': (576, 144),
+        'resnet152': (2048, 512),
+        'wideresnet50': (2048, 512),
+        'mnasnet': (1280, 320),
+    }
 
     # Tuple with classifier definitions
-    __dict_fc = ('resnet18', 'inception_v3',
-                'googlenet', 'shufflenet_v2_x1_0'
-                'resnext50_32x4d', 'wide_resnet50_2')
-    __dict_clsf = ('alexnet', 'vgg16', 'densenet161',
-                   'mobilenet_v2', 'mobilenet_v3_large',
-                   'mobilenet_v3_small', 'mnasnet1_0')
+    __dict_fc = ('resnet18', 'inceptionv3',
+                'googlenet','resnet34',
+                'resnet152', 'wideresnet50')
+
+    __dict_clsf = ('alexnet', 'vgg16',
+                   'mobilenetv2', 'mobilenet_v3_large',
+                   'mobilenetv3small', 'mnasnet', 'vgg19')
 
     def __init__(self, model_name, main_path,
                  train_path = None, test_path = None,):
@@ -83,10 +84,10 @@ class NeuralNetwork(object):
 
 
             # Dict of loader
-            __dict_loader = OrderedDict([
-                ('TrainLoader',train_loader),
-                ('TestLoader', test_loader),
-                ])
+            __dict_loader = {
+                'TrainLoader':train_loader,
+                'TestLoader': test_loader,
+                }
 
             return __dict_loader, count, data_len, num_class
 
@@ -145,36 +146,39 @@ class NeuralNetwork(object):
         model_path = os.path.join(self.main_path, self.model_name + r'.pth')
         name = self.model_name
         # Check model selected
-        if name == 'resnet18':
+        if name == r'resnet18':
             self.model = models.resnet18()
-        elif name == 'alexnet':
+        elif name == r'alexnet':
             self.model = models.alexnet()
-        elif name== 'vgg16':
+        elif name == r'vgg16':
             self.model = models.vgg16()
-        elif name == 'densenet':
-            self.model = models.densenet161()
-        elif name == 'inception_v3':
+        elif name == r'resnet34':
+            self.model = models.resnet34()
+        elif name == r'inceptionv3':
             self.model = models.inception_v3()
-        elif name == 'googlenet':
+        elif name == r'googlenet':
             self.model = models.googlenet()
-        elif name == 'shufflenet':
-            self.model = models.shufflenet_v2_x1_0()
-        elif name == 'mobilenet_v2':
+        elif name == r'vgg19':
+            self.model = models.vgg19()
+        elif name == r'mobilenetv2':
             self.model = models.mobilenet_v2()
-        elif name == 'mobilenet_v3_large':
+        elif name == r'mobilenetv3large':
             self.model = models.mobilenet_v3_large()
-        elif name == 'mobilenet_v3_small':
+        elif name == r'mobilenetv3small':
             self.model = models.mobilenet_v3_small()
-        elif name == 'resnext50_32x4d':
-            self.model = models.resnext50_32x4d()
-        elif name == 'wide_resnet50_2':
+        elif name == r'resnet152':
+            self.model = models.resnet152()
+        elif name == r'wideresnet50':
             self.model = models.wide_resnet50_2()
-        elif name == 'mnasnet':
+        elif name == r'mnasnet':
             self.model = models.mnasnet1_0()
         else:
             self.model = None
 
-
+        if self.model != None and name not in('inceptionv3', 'googlenet'):
+            self.model.load_state_dict(torch.load(model_path))
+            for param in self.model.parameters():
+                param.requires_grad = False
 
     def model_classifier(self, num_class):
         # Define the last layer of the classifier or model
@@ -195,10 +199,16 @@ class NeuralNetwork(object):
 
             if name in self.__dict_fc:
                 self.model.fc = classifier
+                if name == 'inceptionv3':
+                    self.model.AuxLogits.fc = nn.Sequential(
+                        OrderedDict([('fc1', nn.Linear(768, num_class)),
+                                     ('output', nn.LogSoftmax(dim=1)),
+                                     ]))
             elif name in self.__dict_clsf:
                 self.model.classifier = classifier
             else:
                 self.model = None
+
         except Exception:
             self.model = None
             pass
@@ -308,8 +318,8 @@ class NeuralNetwork(object):
 
 if __name__ == '__main__':
 
-    a = NeuralNetwork('mobilenet_v2','/Users/josemjimenez/Desktop/NeuralNGUI/assets',
-                  '/Users/josemjimenez/Desktop/NeuralNGUI/train'
+    a = NeuralNetwork('resnet152','/Users/josemjimenez/Desktop/NeuralNGUI/NeuralNGUI_main/assets',
+                  '/Users/josemjimenez/Desktop/NeuralNGUI/NeuralNGUI_main/train'
                   )
     a.train_model(10)
 
