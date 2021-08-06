@@ -129,9 +129,9 @@ dmypy.json
 .pyre/
 
 # Neural Network weights
-.pth
+*.pth
 
 # Images from train and test
-.jpg
-.png
-.jpge
+*.jpg
+*.png
+*.jpge
