@@ -86,7 +86,7 @@ class NeuralNetwork(object):
 
             # Dict of loader
             __dict_loader = {
-                'TrainLoader':train_loader,
+                'TrainLoader': train_loader,
                 'TestLoader': test_loader,
                 }
 
@@ -144,7 +144,7 @@ class NeuralNetwork(object):
 
     def select_model(self):
         # Get model path
-        model_path = os.path.join(self.main_path, self.model_name + r'.pth')
+        model_path = os.path.join(self.main_path, self.model_name + '.pth')
         name = self.model_name
         # Check model selected
         if name == r'resnet18':
@@ -253,7 +253,10 @@ class NeuralNetwork(object):
         return val_loss, accuracy
 
     def train_model(self, epochs, device='cpu'):
+        # Save losses for plotting them
+        running_loss_list, val_loss_list = [], []
 
+        # Define/calculate parameters
         steps, running_loss = 0, 0
         dataset, params = self.load_normalized_datset(img_size=224, batch_size = 64)
 
@@ -282,23 +285,27 @@ class NeuralNetwork(object):
                 optimizer.step()
 
                 running_loss += loss.item()
+                running_loss_list.append(running_loss)
 
             # Validate model with not grad for speed
             self.model.eval()
 
             with torch.no_grad():
                 val_loss, accuracy = self.validate_model(valid_dataset, criterion, device)
+                val_loss_list.append(val_loss)
 
             print('Epoch: {}/{} '.format(j + 1, epochs),
                   '\tTraining Loss: {:.3f} '.format(running_loss / steps),
                   '\tValidation Loss: {:.3f} '.format(val_loss / len(valid_dataset)),
                   '\tValidation Accuracy: {:.3f} '.format(accuracy / len(valid_dataset)),
                   )
-            yield running_loss, val_loss
+
 
             running_loss, steps = 0, 0
 
-        self.evaluate_model(valid_dataset)
+        print('Test Accuracy of the model: {:.6f} %'.format(100 * accuracy))
+        # Save
+        torch.save(self.model.state_dict(), 'model.pth')
 
         plt.plot(running_loss, label='Training loss')
         plt.plot(val_loss, label='Validation loss')
@@ -306,23 +313,9 @@ class NeuralNetwork(object):
         plt.ylabel("Loss")
         plt.legend(frameon=False)
 
-    def evaluate_model(self, valid_loader, device='cpu'):
-        # test-the-model
-        self.model.eval()  # it-disables-dropout
-        with torch.no_grad():
-            correct = 0
-            total = 0
-            for imgs, labels in valid_loader:
-                imgs = imgs.to(device)
-                labels = labels.to(device)
-                outputs = self.model(imgs)
-                _, predicted = torch.max(outputs.data, 1)
-                total += labels.size(0)
-                correct += (predicted == labels).sum().item()
 
-            print('Test Accuracy of the model: {} %'.format(100 * correct / total))
-            # Save
-            torch.save(self.model.state_dict(), 'model.ckpt')
+
+
 
 if __name__ == '__main__':
 
