@@ -4,7 +4,13 @@ from PyQt5.QtWidgets import (QApplication, QWidget, QListWidget,
     QPushButton, QMessageBox, QFileDialog, QComboBox, QSpinBox, QPlainTextEdit, QCheckBox)
 from PyQt5.QtCore import QSize, Qt, pyqtSlot, pyqtSignal
 from PyQt5.QtGui import QIcon, QFont, QPainter, QColor
+from stylesheet import __dict_style__
 
+
+class Button(QPushButton):
+    def __init__(self, text, parent=None):
+        super().__init__(text, parent)
+        self.setStyleSheet(__dict_style__[text.lower()])
 
 class CheckPreTrained(QCheckBox):
 
@@ -21,6 +27,7 @@ class DragandDropFiles(QListWidget):
         self.file_path = None
         self.setAcceptDrops(True)
         self.setViewMode(QListWidget.IconMode)
+        self.setStyleSheet(__dict_style__['drop_style'])
 
     def dragEnterEvent(self, event):
         data = event.mimeData()
@@ -170,6 +177,52 @@ class LogsOutProcess(QPlainTextEdit):
     def messagesOUT(self, s):
         self.appendPlainText(s)
 
+class FileSave(QWidget):
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.displayFileBox()
+        self.directory = None
+
+    def displayFileBox(self):
+        # Create group to the file directory
+        group = QGroupBox('Select File directory to save model')
+
+        # Create the text box to append file path and button directory
+        self.file = QLineEdit()
+
+        # Create push button to open directory finder
+        dir_button = QPushButton('...')
+        dir_button.setToolTip("Select save file directory.")
+        dir_button.clicked.connect(self.setSaveDirectory)
+
+        # Create layout for group
+        layout = QHBoxLayout()
+        layout.addWidget(self.file)
+        layout.addWidget(dir_button)
+
+        # Set layouts to groups
+        group.setLayout(layout)
+
+        # Widget Layout
+        optionsLayout = QVBoxLayout()
+        optionsLayout.addWidget(group)
+        self.setLayout(optionsLayout)
+
+    def setSaveDirectory(self):
+        # Display file dialog
+        file_dialog = QFileDialog(self)
+        file_dialog.setFileMode(QFileDialog.Directory)
+        # Display directory in open mode
+        self.directory = file_dialog.getExistingDirectory(self, "Select Directory")
+        # Check file extension
+        if self.directory:
+            self.file.setText(self.directory)
+        else:
+            QMessageBox().warning(self, "",
+                "Error, the file directory is empty!",
+                QMessageBox.Ok, QMessageBox.Ok)
+
 class CentralWidget(QWidget):
 
     __model_list = ('resnet18', 'inceptionv3','googlenet',
@@ -194,13 +247,20 @@ class CentralWidget(QWidget):
         self.epochs = DefineBESize(self)
         self.epochs.setToolTip('Select Epochs for Training')
         self.logs = LogsOutProcess(self)
+        self.accept = Button('Accept', self)
+        self.cancel = Button('Cancel', self)
+        self.save = FileSave(self)
+
+        # Set up buttons actions / connections
+        self.accept.clicked.connect(self.acceptAction)
+        self.cancel.clicked.connect(self.cancelAction)
 
         # Initialize and display window
         self.initializeUI()
 
     def initializeUI(self):
         # Create vertical/ horizontal main layout
-        self.v_box = QVBoxLayout()
+        v_box = QVBoxLayout()
         h_box = QHBoxLayout()
 
         # Create group for model properties
@@ -219,10 +279,23 @@ class CentralWidget(QWidget):
         l_model.addWidget(label_pre, 3, 3)
         g_model.setLayout(l_model)
 
+        # Create group for the file directory and drop
+        self.g_weights = QGroupBox("Weights Finder (Optional)")
+
+        # Train model group
+        right_box = QVBoxLayout()
+        right_box.addWidget(self.logs)
+        h_box_button = QHBoxLayout()
+        h_box_button.addWidget(self.accept)
+        h_box_button.addWidget(self.cancel)
+        right_box.addLayout(h_box_button)
+
         # ADD widget to main layout
-        self.v_box.addWidget(g_model)
-        h_box.addLayout(self.v_box)
-        h_box.addWidget(self.logs)
+        v_box.addWidget(g_model)
+        v_box.addWidget(self.save)
+        v_box.addWidget(self.g_weights)
+        h_box.addLayout(v_box)
+        h_box.addLayout(right_box)
 
         self.setLayout(h_box)
 
@@ -238,18 +311,20 @@ class CentralWidget(QWidget):
             self.drag.file_directory.connect(self.file.recibeData)
             self.file.file_directory.connect(self.drag.updateIcon)
 
-            # Create group for the file directory and drop
-            g_weights = QGroupBox("Weights Finder (Optional)")
             l_weights = QVBoxLayout()
             l_weights.addWidget(self.file)
             l_weights.addWidget(self.drag)
-            g_weights.setLayout(l_weights)
-            # ADD widget to main layout
-            self.v_box.addWidget(g_weights)
+            self.g_weights.setLayout(l_weights)
 
         else:
-            self.v_box.itemAt(1).widget().deleteLater()
+            for widget in self.g_weights.children():
+                widget.deleteLater()
 
+    def acceptAction(self):
+        pass
+
+    def cancelAction(self):
+        pass
 
 
 if __name__ == '__main__':
