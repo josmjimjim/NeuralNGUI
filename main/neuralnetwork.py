@@ -314,9 +314,6 @@ class NeuralNetwork(object):
         plt.legend(frameon=False)
 
 
-
-
-
 if __name__ == '__main__':
 
     a = NeuralNetwork('alexnet','/Users/josemjimenez/Desktop/NeuralNGUI/NeuralNGUI_main/assets',
