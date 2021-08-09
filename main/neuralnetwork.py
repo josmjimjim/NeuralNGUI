@@ -3,6 +3,7 @@ import torch
 from torch import nn
 from collections import Counter, OrderedDict
 from torchvision import transforms, datasets, models
+import matplotlib.pyplot as plt
 
 
 class NeuralNetwork(object):
@@ -34,7 +35,7 @@ class NeuralNetwork(object):
                    'mobilenetv3small', 'mnasnet', 'vgg19')
 
     def __init__(self, model_name, main_path,
-                 train_path = None, test_path = None,):
+                 train_path=None, test_path=None,):
 
         self.train_path = train_path
         self.test_path = test_path
@@ -113,7 +114,7 @@ class NeuralNetwork(object):
         except Exception:
             return None, None
 
-    def load_normalized_datset(self, img_size = 224, batch_size = 64):
+    def load_normalized_datset(self, img_size=224, batch_size=64):
         tform = self.transform_images(img_size)
         img, _, _, _ = self.load_dataset(tform, batch_size=batch_size)
         mean, std = self.compute_mean_std(img)
@@ -253,11 +254,8 @@ class NeuralNetwork(object):
 
     def train_model(self, epochs, device='cpu'):
 
-        if self.model == None:
-            pass
-
         steps, running_loss = 0, 0
-        dataset, params = self.load_normalized_datset(img_size=400, batch_size = 4)
+        dataset, params = self.load_normalized_datset(img_size=224, batch_size = 64)
 
         # Define parameters
         num_class = params['Number of classes']
@@ -296,8 +294,17 @@ class NeuralNetwork(object):
                   '\tValidation Loss: {:.3f} '.format(val_loss / len(valid_dataset)),
                   '\tValidation Accuracy: {:.3f} '.format(accuracy / len(valid_dataset)),
                   )
+            yield running_loss, val_loss
 
             running_loss, steps = 0, 0
+
+        self.evaluate_model(valid_dataset)
+
+        plt.plot(running_loss, label='Training loss')
+        plt.plot(val_loss, label='Validation loss')
+        plt.xlabel("Epochs")
+        plt.ylabel("Loss")
+        plt.legend(frameon=False)
 
     def evaluate_model(self, valid_loader, device='cpu'):
         # test-the-model
@@ -314,13 +321,14 @@ class NeuralNetwork(object):
                 correct += (predicted == labels).sum().item()
 
             print('Test Accuracy of the model: {} %'.format(100 * correct / total))
-
+            # Save
+            torch.save(self.model.state_dict(), 'model.ckpt')
 
 if __name__ == '__main__':
 
-    a = NeuralNetwork('resnet152','/Users/josemjimenez/Desktop/NeuralNGUI/NeuralNGUI_main/assets',
+    a = NeuralNetwork('alexnet','/Users/josemjimenez/Desktop/NeuralNGUI/NeuralNGUI_main/assets',
                   '/Users/josemjimenez/Desktop/NeuralNGUI/NeuralNGUI_main/train'
                   )
-    a.train_model(10)
+    a.train_model(5)
 
 
