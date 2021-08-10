@@ -1,7 +1,10 @@
 import sys, os
+from ctypes import cdll
 from PyQt5.QtWidgets import (QApplication, QWidget, QListWidget,
     QVBoxLayout, QListWidgetItem, QGridLayout, QGroupBox, QLineEdit, QLabel, QHBoxLayout,
-    QPushButton, QMessageBox, QFileDialog, QComboBox, QSpinBox, QPlainTextEdit, QCheckBox)
+    QPushButton, QMessageBox, QFileDialog, QComboBox, QSpinBox, QDoubleSpinBox,
+    QPlainTextEdit, QCheckBox)
+
 from PyQt5.QtCore import QSize, Qt, QProcess, QProcessEnvironment, pyqtSlot, pyqtSignal
 from PyQt5.QtGui import QIcon, QFont, QPainter, QColor
 from stylesheet import __dict_style__
@@ -96,6 +99,7 @@ class DragandDropFiles(QListWidget):
 class FileDirectorySystemBar(QWidget):
 
     file_directory = pyqtSignal(str)
+    directory: str = ''
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -157,15 +161,18 @@ class SelectOptions(QComboBox):
 
 class DefineBESize(QSpinBox):
 
-    be_size = pyqtSignal(int)
-
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setRange(1, 10000)
-        self.valueChanged.connect(self.sendBESize)
 
-    def sendBESize(self):
-        self.be_size.emit(self.value())
+class DefineLearning(QDoubleSpinBox):
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setRange(0.0, 100.0)
+        self.setSingleStep(0.001)
+        self.setDecimals(6)
+        self.setValue(0.001)
 
 class LogsOutProcess(QPlainTextEdit):
 
@@ -177,23 +184,32 @@ class LogsOutProcess(QPlainTextEdit):
     def messagesOUT(self, s):
         self.appendPlainText(s)
 
-class FileSave(QWidget):
+class FileDirectorySelect(QWidget):
 
-    def __init__(self, parent=None):
+    def __init__(self, kind, parent=None):
         super().__init__(parent)
-        self.displayFileBox()
         self.directory = None
+        self.kind = kind
+        self.displayFileBox()
 
     def displayFileBox(self):
+        if self.kind == 's':
+            msg = 'Select File directory to save model'
+        elif self.kind == 'train':
+            msg = 'Select Train directory'
+        elif self.kind == 'test':
+            msg = 'Select Test directory'
+        else:
+            msg = 'Select File directory'
         # Create group to the file directory
-        group = QGroupBox('Select File directory to save model')
+        group = QGroupBox(msg)
 
         # Create the text box to append file path and button directory
         self.file = QLineEdit()
 
         # Create push button to open directory finder
         dir_button = QPushButton('...')
-        dir_button.setToolTip("Select save file directory.")
+        dir_button.setToolTip("Select the file directory.")
         dir_button.clicked.connect(self.setSaveDirectory)
 
         # Create layout for group
@@ -219,6 +235,7 @@ class FileSave(QWidget):
         if self.directory:
             self.file.setText(self.directory)
         else:
+            self.file.clear()
             QMessageBox().warning(self, "",
                 "Error, the file directory is empty!",
                 QMessageBox.Ok, QMessageBox.Ok)
@@ -230,6 +247,12 @@ class ExternalProcess(QProcess):
         env = self.read_env()
         self.setProcessEnvironment(env)
         self.setProcessChannelMode(QProcess.MergedChannels)
+
+        # Check codec if window try and mac os, unix except
+        try:
+            self.codec = 'cp' + str(cdll.kernel32.GetACP())
+        except:
+            self.codec = 'utf-8'
 
     @staticmethod
     def read_env():
@@ -250,7 +273,7 @@ class ExternalProcess(QProcess):
 
 class CentralWidget(QWidget):
 
-    process: object = None
+    file: object = None
 
     __model_list = ('resnet18', 'inceptionv3','googlenet',
                     'resnet34', 'resnet152', 'wideresnet50',
@@ -265,22 +288,43 @@ class CentralWidget(QWidget):
         # Create instances of object to call in initializeUI
         self.check_button = CheckPreTrained(self)
         self.check_button.stateChanged.connect(self.updateUI)
+
+        # Initialize widgets
+        self.train = FileDirectorySelect('train', self)
+        self.train.setToolTip('Select train directory')
+
+        self.test = FileDirectorySelect('test', self)
+        self.test.setToolTip('Select test directory')
+
         self.model = SelectOptions(self.__model_list, self)
         self.model.setToolTip('Select Neural Network Model')
+
         self.optimizer = SelectOptions(self.__optim_list, self)
         self.optimizer.setToolTip('Select Optimizer')
+
         self.batch = DefineBESize(self)
         self.batch.setToolTip('Select Batch Size')
+
         self.epochs = DefineBESize(self)
         self.epochs.setToolTip('Select Epochs for Training')
+
+        self.lr = DefineLearning(self)
+        self.lr.setToolTip('Select Learning Rate for Training')
+
+        self.save = FileDirectorySelect('s', self)
+
         self.logs = LogsOutProcess(self)
+
         self.accept = Button('Accept', self)
         self.cancel = Button('Cancel', self)
-        self.save = FileSave(self)
+
 
         # Set up buttons actions / connections
         self.accept.clicked.connect(self.acceptAction)
         self.cancel.clicked.connect(self.cancelAction)
+
+        # Define process
+        self.process = None
 
         # Initialize and display window
         self.initializeUI()
@@ -291,19 +335,27 @@ class CentralWidget(QWidget):
         h_box = QHBoxLayout()
 
         # Create group for model properties
+        g_dataset = QGroupBox("Model Dataset Definitions")
+        l_dataset = QGridLayout()
+        l_dataset.addWidget(self.train, 0, 0)
+        l_dataset.addWidget(self.test, 1, 0)
+        g_dataset.setLayout(l_dataset)
+
+        # Create group for model properties
         g_model = QGroupBox("Model Properties Definitions")
         l_model = QGridLayout()
         label_mo = QLabel('Model / Optimizer')
         l_model.addWidget(label_mo, 0, 0)
         l_model.addWidget(self.model, 1, 0)
         l_model.addWidget(self.optimizer, 1, 1)
-        label_be = QLabel('Batch Size / Epochs')
+        label_be = QLabel('Batch Size / Epochs / Learning rate')
         l_model.addWidget(label_be, 2, 0)
         l_model.addWidget(self.batch, 3, 0)
         l_model.addWidget(self.epochs, 3, 1)
+        l_model.addWidget(self.lr, 3, 2)
         label_pre = QLabel('Pretrained?')
-        l_model.addWidget(self.check_button, 3, 2)
-        l_model.addWidget(label_pre, 3, 3)
+        l_model.addWidget(self.check_button, 3, 3)
+        l_model.addWidget(label_pre, 3, 4)
         g_model.setLayout(l_model)
 
         # Create group for the file directory and drop
@@ -318,6 +370,7 @@ class CentralWidget(QWidget):
         right_box.addLayout(h_box_button)
 
         # ADD widget to main layout
+        v_box.addWidget(g_dataset)
         v_box.addWidget(g_model)
         v_box.addWidget(self.save)
         v_box.addWidget(self.g_weights)
@@ -348,11 +401,66 @@ class CentralWidget(QWidget):
                 widget.deleteLater()
 
     def acceptAction(self):
-        self.process = ExternalProcess()
 
+        # Clear logs windows
+        self.logs.clear()
+        self.logs.appendPlainText('Process starts running')
+
+        file = os.getcwd()
+        file = os. path.normpath(os.path.join(file,
+                                'neuralnetwork.py'))
+
+        process_args = [file]
+
+        # Order arguments
+        __args = {
+            'model': self.model.currentText(),
+            'optimizer': self.optimizer.currentText(),
+            'batch': self.batch.value(),
+            'epochs': self.epochs.value(),
+            'lr': self.lr.value(),
+            'save': self.save.directory,
+            'train': self.train.directory,
+        }
+
+        for key in __args.keys():
+            process_args.append(str(__args[key]))
+
+        if self.file and self.test:
+            process_args.append('-t ' + self.test.directory)
+            process_args.append('-w ' + self.file.directory)
+        if not self.process:
+            self.process = ExternalProcess(self)
+            self.process.readyReadStandardOutput.connect(self.handle_stdout)
+            self.process.readyReadStandardError.connect(self.handle_stderr)
+            self.process.finished.connect(self.process_finished)  # Clean up once complete.
+            self.process.setProgram('python')
+            self.process.setArguments(process_args)
+            self.process.start()
 
     def cancelAction(self):
-        pass
+        if self.process:
+            self.process.kill()
+            self.logs.appendPlainText('Cancelled by user')
+        else:
+            pass
+
+    def message(self, *args):
+        self.logs.appendPlainText(*args)
+
+    def process_finished(self):
+        self.logs.appendPlainText('Process finished')
+        self.process = None
+
+    def handle_stderr(self):
+        data = self.process.readAllStandardError()
+        stderr = bytes(data).decode(self.process.codec)
+        self.message(stderr)
+
+    def handle_stdout(self):
+        data = self.process.readAllStandardOutput()
+        stdout = bytes(data).decode(self.process.codec)
+        self.message(stdout)
 
 
 if __name__ == '__main__':

@@ -86,9 +86,9 @@ class NeuralNetwork(object):
 
             # Load data as iterable
             train_loader = torch.utils.data.DataLoader(train_data, batch_size=self.batch_size,
-                                                shuffle=True, num_workers=4)
+                                                shuffle=True, num_workers=2)
             test_loader = torch.utils.data.DataLoader(test_data, batch_size=self.batch_size,
-                                                shuffle=True, num_workers=4)
+                                                shuffle=True, num_workers=2)
 
 
             # Dict of loader
@@ -117,7 +117,11 @@ class NeuralNetwork(object):
             total_var = (psum_sq / num_batches) - (total_mean ** 2)
             # Float array must be convert to tensor for speed up calculations
             total_std = torch.sqrt(torch.FloatTensor(total_var))
+
+            print('Dataset mean: {:.4f} and std: {:.4f} '
+                  .format(total_mean, total_std))
             return total_mean, total_std
+
         except Exception:
             return None, None
 
@@ -135,6 +139,13 @@ class NeuralNetwork(object):
             ('Mean', mean), ('Std', std),
         ])
 
+        print('Dataset load and nomalized: Completed',
+              'Dataset statistics:',
+              '===================',
+              '\tNumber of images {}'.format(data_len),
+              '\tNumber of classes: {} '.format(num_class),
+              '\tNumber of classe-images:\n{}'.format(count),
+              )
         return image_loader, __dict_load
 
     @staticmethod
@@ -187,6 +198,9 @@ class NeuralNetwork(object):
             self.model.load_state_dict(torch.load(weights_path))
             for param in self.model.parameters():
                 param.requires_grad = False
+            print('Model: {}\nModel status: Pretrained'.format(name))
+        else:
+            print('Model: {}\nModel status: Not Pretrained'.format(name))
 
     def model_classifier(self, num_class):
         # Define the last layer of the classifier or model
@@ -217,6 +231,8 @@ class NeuralNetwork(object):
             else:
                 self.model = None
 
+            print('Set up classifier')
+
         except Exception:
             self.model = None
 
@@ -240,6 +256,7 @@ class NeuralNetwork(object):
         else:
             optimizer = None
 
+        print('Optimizer: {}'.format(opt_name))
         return optimizer
 
     def validate_model(self, valid_data, criterion, device):
@@ -331,14 +348,14 @@ if __name__ == '__main__':
 
     # Define args to pass to the model
     parser = argparse.ArgumentParser()
-    parser.add_argument('-m', '--model', help='Select the model for training')
-    parser.add_argument('-o', '--optimizer', help='Select the optimizer')
-    parser.add_argument('-b', '--batch', type=int, help='Define the batch size')
-    parser.add_argument('-e', '--epochs', type=int, help='Define the epochs for training model')
-    parser.add_argument('--lr', type=float, help='Define learning rate for the optimizer')
-    parser.add_argument('-s', '--save', help='Select file directory to save model')
-    parser.add_argument('-tr', '--train', help='Select file directory of training images')
-    parser.add_argument('-tt', '--test', help='Select file directory of test images')
+    parser.add_argument('model', help='Select the model for training')
+    parser.add_argument('optimizer', help='Select the optimizer')
+    parser.add_argument('batch', help='Define the batch size')
+    parser.add_argument('epochs', help='Define the epochs for training model')
+    parser.add_argument('lr', help='Define learning rate for the optimizer')
+    parser.add_argument('save', help='Select file directory to save model')
+    parser.add_argument('train', help='Select file directory of training images')
+    parser.add_argument('-t', '--test', help='Select file directory of test images')
     parser.add_argument('-w', '--weights', help='(Optional) Select pretrained weights')
 
     args = parser.parse_args()
@@ -348,8 +365,8 @@ if __name__ == '__main__':
     else:
         weights = None
 
-    neural = NeuralNetwork(args.model, args.optimizer, args.batch,
-                      args.epochs, args.lr, args.save,
+    neural = NeuralNetwork(args.model, args.optimizer, int(args.batch),
+                      int(args.epochs), float(args.lr), args.save,
                       args.train, args.test, weights
                      )
     neural.train_model()
