@@ -1,4 +1,4 @@
-import os
+import os, argparse
 import torch
 from torch import nn
 from collections import Counter, OrderedDict
@@ -34,13 +34,20 @@ class NeuralNetwork(object):
                    'mobilenetv2', 'mobilenet_v3_large',
                    'mobilenetv3small', 'mnasnet', 'vgg19')
 
-    def __init__(self, model_name, main_path,
-                 train_path=None, test_path=None,):
+    def __init__(self, model_name, optimizer_name,
+                 batch_size, epochs, lr=0.001, save_path=None,
+                 train_path=None, test_path=None,
+                 weights_path=None,):
 
+        self.model_name = model_name
+        self.optimizer_name = optimizer_name
+        self.batch_size = batch_size
+        self.epochs = epochs
+        self.lr = lr
+        self.save_path = save_path
         self.train_path = train_path
         self.test_path = test_path
-        self.model_name = model_name
-        self.main_path = main_path
+        self.weights_path = weights_path
         self.model = None
 
     def transform_images(self, image_size, mean=(0, 0, 0), std=(1, 1, 1)):
@@ -54,7 +61,7 @@ class NeuralNetwork(object):
 
         return transform
 
-    def load_dataset(self, tform, batch_size = 64):
+    def load_dataset(self, tform):
         # Load Dataset with ImageFolder
         try:
             # ImageFolder automatically converts images to RGB
@@ -78,10 +85,10 @@ class NeuralNetwork(object):
                 )
 
             # Load data as iterable
-            train_loader = torch.utils.data.DataLoader(train_data, batch_size= batch_size,
-                                                shuffle=True, num_workers=2)
-            test_loader = torch.utils.data.DataLoader(test_data, batch_size= batch_size,
-                                                shuffle=True, num_workers=2)
+            train_loader = torch.utils.data.DataLoader(train_data, batch_size=self.batch_size,
+                                                shuffle=True, num_workers=4)
+            test_loader = torch.utils.data.DataLoader(test_data, batch_size=self.batch_size,
+                                                shuffle=True, num_workers=4)
 
 
             # Dict of loader
@@ -114,13 +121,12 @@ class NeuralNetwork(object):
         except Exception:
             return None, None
 
-    def load_normalized_datset(self, img_size=224, batch_size=64):
+    def load_normalized_datset(self, img_size=224):
         tform = self.transform_images(img_size)
-        img, _, _, _ = self.load_dataset(tform, batch_size=batch_size)
+        img, _, _, _ = self.load_dataset(tform)
         mean, std = self.compute_mean_std(img)
         tform = self.transform_images(img_size, mean=mean, std=std)
-        image_loader, count, data_len, num_class = self.load_dataset(tform,
-                                                     batch_size=batch_size)
+        image_loader, count, data_len, num_class = self.load_dataset(tform)
         # Dictionary with parameters
         __dict_load = OrderedDict([
             ('Number of images in dataset', data_len),
@@ -143,9 +149,9 @@ class NeuralNetwork(object):
         return data_count
 
     def select_model(self):
-        # Get model path
-        model_path = os.path.join(self.main_path, self.model_name + '.pth')
+
         name = self.model_name
+
         # Check model selected
         if name == r'resnet18':
             self.model = models.resnet18()
@@ -176,8 +182,9 @@ class NeuralNetwork(object):
         else:
             self.model = None
 
-        if self.model != None and name not in('inceptionv3', 'googlenet'):
-            self.model.load_state_dict(torch.load(model_path))
+        if (self.model and self.weights_path) and name not in('inceptionv3', 'googlenet'):
+            weights_path = os.path.normpath(self.weights_path)
+            self.model.load_state_dict(torch.load(weights_path))
             for param in self.model.parameters():
                 param.requires_grad = False
 
@@ -212,10 +219,11 @@ class NeuralNetwork(object):
 
         except Exception:
             self.model = None
-            pass
 
-    def select_optimizer(self, opt_name, lr=0.001):
+    def select_optimizer(self):
         optim = self.model
+        opt_name, lr = self.optimizer_name, self.lr
+
         # Select optimizer by name
         if opt_name == 'Adam':
             optimizer = torch.optim.Adam(optim.parameters(), lr=lr)
@@ -252,13 +260,14 @@ class NeuralNetwork(object):
 
         return val_loss, accuracy
 
-    def train_model(self, epochs, device='cpu'):
+    def train_model(self, device='cpu'):
         # Save losses for plotting them
         running_loss_list, val_loss_list = [], []
 
         # Define/calculate parameters
         steps, running_loss = 0, 0
-        dataset, params = self.load_normalized_datset(img_size=224, batch_size = 64)
+        dataset, params = self.load_normalized_datset(img_size=224)
+        epochs = self.epochs
 
         # Define parameters
         num_class = params['Number of classes']
@@ -267,7 +276,7 @@ class NeuralNetwork(object):
 
         self.select_model()
         self.model_classifier(num_class)
-        optimizer = self.select_optimizer('Adam', lr=0.1)
+        optimizer = self.select_optimizer()
         criterion = nn.NLLLoss()
 
         for j in range(epochs):
@@ -304,9 +313,13 @@ class NeuralNetwork(object):
             running_loss, steps = 0, 0
 
         print('Test Accuracy of the model: {:.6f} %'.format(100 * accuracy))
-        # Save
-        torch.save(self.model.state_dict(), 'model.pth')
 
+        # Save
+        model_path = os.path.normpath(os.path.join(self.save_path,
+                                                  self.model_name + '.pth'))
+        torch.save(self.model.state_dict(), model_path)
+
+        # Plot results
         plt.plot(running_loss, label='Training loss')
         plt.plot(val_loss, label='Validation loss')
         plt.xlabel("Epochs")
@@ -316,9 +329,30 @@ class NeuralNetwork(object):
 
 if __name__ == '__main__':
 
-    a = NeuralNetwork('alexnet','/Users/josemjimenez/Desktop/NeuralNGUI/NeuralNGUI_main/assets',
-                  '/Users/josemjimenez/Desktop/NeuralNGUI/NeuralNGUI_main/train'
-                  )
-    a.train_model(5)
+    # Define args to pass to the model
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-m', '--model', help='Select the model for training')
+    parser.add_argument('-o', '--optimizer', help='Select the optimizer')
+    parser.add_argument('-b', '--batch', type=int, help='Define the batch size')
+    parser.add_argument('-e', '--epochs', type=int, help='Define the epochs for training model')
+    parser.add_argument('--lr', type=float, help='Define learning rate for the optimizer')
+    parser.add_argument('-s', '--save', help='Select file directory to save model')
+    parser.add_argument('-tr', '--train', help='Select file directory of training images')
+    parser.add_argument('-tt', '--test', help='Select file directory of test images')
+    parser.add_argument('-w', '--weights', help='(Optional) Select pretrained weights')
+
+    args = parser.parse_args()
+
+    if args.weights:
+        weights = args.weights
+    else:
+        weights = None
+
+    neural = NeuralNetwork(args.model, args.optimizer, args.batch,
+                      args.epochs, args.lr, args.save,
+                      args.train, args.test, weights
+                     )
+    neural.train_model()
+
 
 
