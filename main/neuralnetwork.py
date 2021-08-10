@@ -117,9 +117,7 @@ class NeuralNetwork(object):
             total_var = (psum_sq / num_batches) - (total_mean ** 2)
             # Float array must be convert to tensor for speed up calculations
             total_std = torch.sqrt(torch.FloatTensor(total_var))
-
-            print('Dataset mean: {:.4f} and std: {:.4f} '
-                  .format(total_mean, total_std))
+            total_mean, total_std = tuple(total_mean.tolist()), tuple(total_std.tolist())
             return total_mean, total_std
 
         except Exception:
@@ -140,11 +138,13 @@ class NeuralNetwork(object):
         ])
 
         print('Dataset load and nomalized: Completed',
-              'Dataset statistics:',
-              '===================',
-              '\tNumber of images {}'.format(data_len),
-              '\tNumber of classes: {} '.format(num_class),
-              '\tNumber of classe-images:\n{}'.format(count),
+              'Dataset statistics:\n',
+              '===================\n',
+              '\tNumber of images {}\n'.format(data_len),
+              '\tNumber of classes: {}\n'.format(num_class),
+              '\tNumber of classe-images:\n{}\n'.format(count),
+              '\tDataset mean: {}\n'.format(mean),
+              '\tDataset std: {}\n'.format(std)
               )
         return image_loader, __dict_load
 
