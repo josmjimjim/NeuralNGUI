@@ -70,7 +70,7 @@ class NeuralNetwork(object):
             count, data_len = self.getnumber_imagesdataset(train_data)
             num_class = self.getnumber_classes(train_data)
 
-            if self.test_path != None:
+            if not self.test_path:
                 test_data = datasets.ImageFolder(self.test_path, transform=tform)
             else:
                 # Length of splits
@@ -137,7 +137,7 @@ class NeuralNetwork(object):
             ('Mean', mean), ('Std', std),
         ])
 
-        print('Dataset load and nomalized: Completed',
+        print('Dataset load and nomalized: Completed\n',
               'Dataset statistics:\n',
               '===================\n',
               '\tNumber of images {}\n'.format(data_len),
@@ -193,12 +193,12 @@ class NeuralNetwork(object):
         else:
             self.model = None
 
-        if (self.model and self.weights_path) and name not in('inceptionv3', 'googlenet'):
-            weights_path = os.path.normpath(self.weights_path)
-            self.model.load_state_dict(torch.load(weights_path))
-            for param in self.model.parameters():
-                param.requires_grad = False
-            print('Model: {}\nModel status: Pretrained'.format(name))
+        if self.weights_path:
+            if name not in('inceptionv3', 'googlenet'):
+                self.model.load_state_dict(torch.load(self.weights_path))
+                for param in self.model.parameters():
+                    param.requires_grad = False
+                print('Model: {}\nModel status: Pretrained'.format(name))
         else:
             print('Model: {}\nModel status: Not Pretrained'.format(name))
 
@@ -365,9 +365,14 @@ if __name__ == '__main__':
     else:
         weights = None
 
+    if args.test:
+        test = args.test
+    else:
+        test = None
+
     neural = NeuralNetwork(args.model, args.optimizer, int(args.batch),
                       int(args.epochs), float(args.lr), args.save,
-                      args.train, args.test, weights
+                      args.train, test, weights
                      )
     neural.train_model()
 

@@ -99,7 +99,6 @@ class DragandDropFiles(QListWidget):
 class FileDirectorySystemBar(QWidget):
 
     file_directory = pyqtSignal(str)
-    directory: str = ''
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -198,7 +197,7 @@ class FileDirectorySelect(QWidget):
         elif self.kind == 'train':
             msg = 'Select Train directory'
         elif self.kind == 'test':
-            msg = 'Select Test directory'
+            msg = '(Optional) Select Test directory'
         else:
             msg = 'Select File directory'
         # Create group to the file directory
@@ -325,6 +324,7 @@ class CentralWidget(QWidget):
 
         # Define process
         self.process = None
+        self.file = None
 
         # Initialize and display window
         self.initializeUI()
@@ -426,9 +426,11 @@ class CentralWidget(QWidget):
         for key in __args.keys():
             process_args.append(str(__args[key]))
 
-        if self.file and self.test:
-            process_args.append('-t ' + self.test.directory)
-            process_args.append('-w ' + self.file.directory)
+        if self.test.directory:
+            process_args.append('-t ' + str(self.test.file.text()))
+        if self.file:
+            process_args.append('-w ' + str(self.file.file.text()))
+
         if not self.process:
             self.process = ExternalProcess(self)
             self.process.readyReadStandardOutput.connect(self.handle_stdout)
