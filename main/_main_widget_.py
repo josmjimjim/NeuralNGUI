@@ -102,14 +102,14 @@ class FileDirectorySystemBar(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        # Create the text box to append file path and button directory
+        self.file = QLineEdit()
+        self.directory = None
         self.displayFileBox()
 
     def displayFileBox(self):
         # Create group to the file directory
         group = QGroupBox('Weights File directory')
-
-        # Create the text box to append file path and button directory
-        self.file = QLineEdit()
 
         # Create push button to open directory finder
         dir_button = QPushButton('...')
@@ -272,8 +272,6 @@ class ExternalProcess(QProcess):
 
 class CentralWidget(QWidget):
 
-    file: object = None
-
     __model_list = ('resnet18', 'inceptionv3','googlenet',
                     'resnet34', 'resnet152', 'wideresnet50',
                     'alexnet', 'vgg16', 'mobilenetv2',
@@ -324,7 +322,7 @@ class CentralWidget(QWidget):
 
         # Define process
         self.process = None
-        self.file = None
+        self.weights_file = None
 
         # Initialize and display window
         self.initializeUI()
@@ -385,14 +383,14 @@ class CentralWidget(QWidget):
 
             # Initialize widgets
             self.drag = DragandDropFiles(self)
-            self.file = FileDirectorySystemBar(self)
+            self.weights_file = FileDirectorySystemBar(self)
 
             # Conect the signal and slot
-            self.drag.file_directory.connect(self.file.recibeData)
-            self.file.file_directory.connect(self.drag.updateIcon)
+            self.drag.file_directory.connect(self.weights_file.recibeData)
+            self.weights_file.file_directory.connect(self.drag.updateIcon)
 
             l_weights = QVBoxLayout()
-            l_weights.addWidget(self.file)
+            l_weights.addWidget(self.weights_file)
             l_weights.addWidget(self.drag)
             self.g_weights.setLayout(l_weights)
 
@@ -427,9 +425,11 @@ class CentralWidget(QWidget):
             process_args.append(str(__args[key]))
 
         if self.test.directory:
-            process_args.append('-t ' + str(self.test.file.text()))
-        if self.file:
-            process_args.append('-w ' + str(self.file.file.text()))
+            process_args.append('-t')
+            process_args.append(str(self.test.directory))
+        if self.weights_file:
+            process_args.append('-w')
+            process_args.append(str(self.weights_file.file.text()))
 
         if not self.process:
             self.process = ExternalProcess(self)

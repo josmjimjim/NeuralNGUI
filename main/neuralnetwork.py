@@ -1,4 +1,5 @@
 import os, argparse
+import io
 import torch
 from torch import nn
 from collections import Counter, OrderedDict
@@ -70,7 +71,7 @@ class NeuralNetwork(object):
             count, data_len = self.getnumber_imagesdataset(train_data)
             num_class = self.getnumber_classes(train_data)
 
-            if not self.test_path:
+            if self.test_path is not None:
                 test_data = datasets.ImageFolder(self.test_path, transform=tform)
             else:
                 # Length of splits
@@ -193,9 +194,23 @@ class NeuralNetwork(object):
         else:
             self.model = None
 
+        model_dict = self.model.state_dict()
+
         if self.weights_path:
             if name not in('inceptionv3', 'googlenet'):
-                self.model.load_state_dict(torch.load(self.weights_path))
+                with open(self.weights_path, 'rb') as f:
+                    buffer = io.BytesIO(f.read())
+                    buffer.seek(0)
+                    f.close()
+                # Filter prameters
+                pretrained_dict = torch.load(buffer)
+                pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
+                buffer.close()
+                # Overwrite entries in the existing state dict
+                model_dict.update(pretrained_dict)
+                # Load the new state dict
+                self.model.load_state_dict(model_dict)
+
                 for param in self.model.parameters():
                     param.requires_grad = False
                 print('Model: {}\nModel status: Pretrained'.format(name))
@@ -280,6 +295,7 @@ class NeuralNetwork(object):
     def train_model(self, device='cpu'):
         # Save losses for plotting them
         running_loss_list, val_loss_list = [], []
+        epochs_list = []
 
         # Define/calculate parameters
         steps, running_loss = 0, 0
@@ -329,6 +345,8 @@ class NeuralNetwork(object):
 
             running_loss, steps = 0, 0
 
+            epochs_list.append(j)
+
         print('Test Accuracy of the model: {:.6f} %'.format(100 * accuracy))
 
         # Save
@@ -337,12 +355,13 @@ class NeuralNetwork(object):
         torch.save(self.model.state_dict(), model_path)
 
         # Plot results
-        plt.plot(running_loss, label='Training loss')
-        plt.plot(val_loss, label='Validation loss')
+        plt.plot(epochs_list, running_loss_list, label='Training loss')
+        plt.plot(epochs_list, val_loss_list, label='Validation loss')
         plt.xlabel("Epochs")
         plt.ylabel("Loss")
         plt.legend(frameon=False)
-
+        save_path = os.path.normpath(os.path.join(self.save_path, 'loss.png'))
+        plt.savefig(save_path, dpi=300)
 
 if __name__ == '__main__':
 
