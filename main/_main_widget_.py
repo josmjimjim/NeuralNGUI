@@ -2,7 +2,7 @@ import sys, os
 from PyQt5.QtWidgets import (QApplication, QWidget, QListWidget,
     QVBoxLayout, QListWidgetItem, QGridLayout, QGroupBox, QLineEdit, QLabel, QHBoxLayout,
     QPushButton, QMessageBox, QFileDialog, QComboBox, QSpinBox, QPlainTextEdit, QCheckBox)
-from PyQt5.QtCore import QSize, Qt, pyqtSlot, pyqtSignal
+from PyQt5.QtCore import QSize, Qt, QProcess, QProcessEnvironment, pyqtSlot, pyqtSignal
 from PyQt5.QtGui import QIcon, QFont, QPainter, QColor
 from stylesheet import __dict_style__
 
@@ -223,7 +223,34 @@ class FileSave(QWidget):
                 "Error, the file directory is empty!",
                 QMessageBox.Ok, QMessageBox.Ok)
 
+class ExternalProcess(QProcess):
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        env = self.read_env()
+        self.setProcessEnvironment(env)
+        self.setProcessChannelMode(QProcess.MergedChannels)
+
+    @staticmethod
+    def read_env():
+        dir_path = os.getcwd()
+        dir_path = os.path.normpath(os.path.join(dir_path,
+                                 '/main/assets/venv.txt'))
+        env = QProcessEnvironment.systemEnvironment()
+        try:
+            with open(dir_path + '/main/assets/venv.txt', 'r') as f:
+                venv_dir = f.read()
+                f.close()
+        except Exception:
+               venv_dir = None
+
+        env.insert("PYTHONPATH", venv_dir)
+
+        return env
+
 class CentralWidget(QWidget):
+
+    process: object = None
 
     __model_list = ('resnet18', 'inceptionv3','googlenet',
                     'resnet34', 'resnet152', 'wideresnet50',
@@ -321,7 +348,8 @@ class CentralWidget(QWidget):
                 widget.deleteLater()
 
     def acceptAction(self):
-        pass
+        self.process = ExternalProcess()
+
 
     def cancelAction(self):
         pass
