@@ -339,9 +339,9 @@ class NeuralNetwork(object):
 
             with torch.no_grad():
                 val_loss, accuracy, y_pred, y_true = self.validate_model(valid_dataset, criterion, device)
-                val_loss_list.append(val_loss)
+                val_loss_list.append(val_loss / len(valid_dataset))
 
-            running_loss_list.append(running_loss)
+            running_loss_list.append(running_loss / steps)
 
             print('Epoch: {}/{} '.format(j + 1, epochs),
                   '\tTraining Loss: {:.3f} '.format(running_loss / steps),
@@ -412,7 +412,7 @@ if __name__ == '__main__':
                       int(args.epochs), float(args.lr), args.save,
                       args.train, test, weights
                      )
-    
+
     neural.train_model(device)
 
 
