@@ -8,6 +8,7 @@ from collections import Counter, OrderedDict
 from torchvision import transforms, datasets, models
 import matplotlib.pyplot as plt
 import numpy as np
+from sklearn.metrics import confusion_matrix
 
 class NeuralNetwork(object):
 
@@ -294,7 +295,7 @@ class NeuralNetwork(object):
             equality = (label.data == probabilities.max(dim=1)[1])
             accuracy += equality.type(torch.FloatTensor).mean()
 
-        return val_loss, accuracy, y_pred
+        return val_loss, accuracy, y_pred, y_true
 
     def train_model(self, device='cpu'):
         # Save losses for plotting them
@@ -337,7 +338,7 @@ class NeuralNetwork(object):
             self.model.eval()
 
             with torch.no_grad():
-                val_loss, accuracy = self.validate_model(valid_dataset, criterion, device)
+                val_loss, accuracy, y_pred, y_true = self.validate_model(valid_dataset, criterion, device)
                 val_loss_list.append(val_loss)
 
             print('Epoch: {}/{} '.format(j + 1, epochs),
@@ -345,7 +346,6 @@ class NeuralNetwork(object):
                   '\tValidation Loss: {:.3f} '.format(val_loss / len(valid_dataset)),
                   '\tValidation Accuracy: {:.3f} '.format(accuracy / len(valid_dataset)),
                   )
-
 
             running_loss, steps = 0, 0
 
@@ -369,21 +369,11 @@ class NeuralNetwork(object):
         plt.savefig(save_path, dpi=300)
 
         # Confusion matrix
-        confusion_matrix = torch.zeros(num_class, num_class)
+        cf_matrix = confusion_matrix(y_true, y_pred)
+        df_cm = pd.DataFrame(cf_matrix / np.sum(cf_matrix) * 100)
 
-        with torch.no_grad():
-            for i, (inputs, classes) in enumerate(valid_dataset):
-                inputs = inputs.to(device)
-                classes = classes.to(device)
-                outputs = self.model.forward(inputs)
-                _, preds = torch.max(outputs, 1)
-                for t, p in zip(classes.view(-1), preds.view(-1)):
-                    confusion_matrix[t.long(), p.long()] += 1
-
-        confusion_matrix = confusion_matrix.numpy()
-        confusion_matrix = pd.DataFrame(confusion_matrix/ np.sum(confusion_matrix) * 100)
         plt.figure(figsize=(12, 7))
-        sns.heatmap(confusion_matrix, annot=True)
+        sns.heatmap(df_cm, annot=True)
         save_path = os.path.normpath(os.path.join(self.save_path, 'confusion.png'))
         plt.savefig(save_path, dpi=300)
 
