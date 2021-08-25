@@ -257,7 +257,7 @@ class ExternalProcess(QProcess):
     def read_env():
         dir_path_abs = os.getcwd()
         dir_path = os.path.normpath(os.path.join(dir_path_abs,
-                                 '/main/assets/venv.txt'))
+                                 'main/assets/venv.txt'))
         env = QProcessEnvironment.systemEnvironment()
         try:
             with open(dir_path, 'r') as f:
@@ -406,7 +406,7 @@ class CentralWidget(QWidget):
 
         file = os.getcwd()
         file = os.path.normpath(os.path.join(file,
-                                '/main/neuralnetwork.py'))
+                                'main/neuralnetwork.py'))
 
         self.process_args = [file]
 
