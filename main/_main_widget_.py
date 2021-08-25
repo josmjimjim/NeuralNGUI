@@ -396,6 +396,7 @@ class CentralWidget(QWidget):
 
         else:
             for widget in self.g_weights.children():
+                self.weights_file = None
                 widget.deleteLater()
 
     def acceptAction(self):
@@ -408,7 +409,7 @@ class CentralWidget(QWidget):
         file = os. path.normpath(os.path.join(file,
                                 'neuralnetwork.py'))
 
-        process_args = [file]
+        self.process_args = [file]
 
         # Order arguments
         __args = {
@@ -422,14 +423,14 @@ class CentralWidget(QWidget):
         }
 
         for key in __args.keys():
-            process_args.append(str(__args[key]))
+            self.process_args.append(str(__args[key]))
 
         if self.test.directory:
-            process_args.append('-t')
-            process_args.append(str(self.test.directory))
+            self.process_args.append('-t')
+            self.process_args.append(str(self.test.directory))
         if self.weights_file:
-            process_args.append('-w')
-            process_args.append(str(self.weights_file.file.text()))
+            self.process_args.append('-w')
+            self.process_args.append(str(self.weights_file.file.text()))
 
         if not self.process:
             self.process = ExternalProcess(self)
@@ -437,7 +438,7 @@ class CentralWidget(QWidget):
             self.process.readyReadStandardError.connect(self.handle_stderr)
             self.process.finished.connect(self.process_finished)  # Clean up once complete.
             self.process.setProgram('python')
-            self.process.setArguments(process_args)
+            self.process.setArguments(self.process_args)
             self.process.start()
 
     def cancelAction(self):
