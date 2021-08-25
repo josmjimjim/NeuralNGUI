@@ -406,11 +406,14 @@ if __name__ == '__main__':
     else:
         test = None
 
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
     neural = NeuralNetwork(args.model, args.optimizer, int(args.batch),
                       int(args.epochs), float(args.lr), args.save,
                       args.train, test, weights
                      )
-    neural.train_model()
+    
+    neural.train_model(device)
 
 
 
