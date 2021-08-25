@@ -1,6 +1,7 @@
 import os, argparse
 import io
 import torch
+
 from torch import nn
 from collections import Counter, OrderedDict
 from torchvision import transforms, datasets, models
@@ -347,7 +348,8 @@ class NeuralNetwork(object):
 
             epochs_list.append(j)
 
-        print('Test Accuracy of the model: {:.6f} %'.format(100 * accuracy))
+        print('Test Accuracy of the model: {:.6f} %'
+              .format(100 * accuracy/len(valid_dataset)))
 
         # Save
         model_path = os.path.normpath(os.path.join(self.save_path,
@@ -355,13 +357,28 @@ class NeuralNetwork(object):
         torch.save(self.model.state_dict(), model_path)
 
         # Plot results
-        plt.plot(epochs_list, running_loss_list, label='Training loss')
-        plt.plot(epochs_list, val_loss_list, label='Validation loss')
+        plt.plot(running_loss_list, label='Training loss')
+        plt.plot(val_loss_list, label='Validation loss')
         plt.xlabel("Epochs")
         plt.ylabel("Loss")
         plt.legend(frameon=False)
         save_path = os.path.normpath(os.path.join(self.save_path, 'loss.png'))
         plt.savefig(save_path, dpi=300)
+
+        # Confusion matrix
+        confusion_matrix = torch.zeros(num_class, num_class)
+
+        with torch.no_grad():
+            for i, (inputs, classes) in enumerate(valid_dataset['val']):
+                inputs = inputs.to(device)
+                classes = classes.to(device)
+                outputs = self.model.forward(inputs)
+                _, preds = torch.max(outputs, 1)
+                for t, p in zip(classes.view(-1), preds.view(-1)):
+                    confusion_matrix[t.long(), p.long()] += 1
+
+        confusion_matrix = confusion_matrix.numpy()
+        print(confusion_matrix)
 
 if __name__ == '__main__':
 

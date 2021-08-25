@@ -407,7 +407,7 @@ class CentralWidget(QWidget):
 
         file = os.getcwd()
         file = os. path.normpath(os.path.join(file,
-                                'neuralnetwork.py'))
+                                '/main/neuralnetwork.py'))
 
         self.process_args = [file]
 
