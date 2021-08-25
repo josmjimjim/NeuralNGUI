@@ -333,7 +333,8 @@ class NeuralNetwork(object):
                 optimizer.step()
 
                 running_loss += loss.item()
-                running_loss_list.append(running_loss.type(torch.FloatTensor).mean())
+                print(running_loss)
+                running_loss_list.append(running_loss)
 
             # Validate model with not grad for speed
             self.model.eval()
