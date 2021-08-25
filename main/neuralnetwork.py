@@ -333,8 +333,6 @@ class NeuralNetwork(object):
                 optimizer.step()
 
                 running_loss += loss.item()
-                print(running_loss)
-                running_loss_list.append(running_loss)
 
             # Validate model with not grad for speed
             self.model.eval()
@@ -343,6 +341,8 @@ class NeuralNetwork(object):
                 val_loss, accuracy, y_pred, y_true = self.validate_model(valid_dataset, criterion, device)
                 val_loss_list.append(val_loss)
 
+            running_loss_list.append(running_loss)
+            
             print('Epoch: {}/{} '.format(j + 1, epochs),
                   '\tTraining Loss: {:.3f} '.format(running_loss / steps),
                   '\tValidation Loss: {:.3f} '.format(val_loss / len(valid_dataset)),
