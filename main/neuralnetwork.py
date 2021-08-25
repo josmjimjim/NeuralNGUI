@@ -372,7 +372,7 @@ class NeuralNetwork(object):
 
         # Confusion matrix
         cf_matrix = confusion_matrix(y_true, y_pred)
-        df_cm = pd.DataFrame(cf_matrix / np.sum(cf_matrix) * 100, index = [i for i in range(num_class)],
+        df_cm = pd.DataFrame(cf_matrix, index = [i for i in range(num_class)],
                      columns = [i for i in range(num_class)])
 
         plt.figure(figsize=(12, 7))
