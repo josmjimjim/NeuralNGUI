@@ -1,1 +1,1 @@
-\venv\Lib\site-packages
+/Desktop/NeuralNGUI/NeuralNGUI_main/venv/bin

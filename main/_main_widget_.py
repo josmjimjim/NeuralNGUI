@@ -255,12 +255,13 @@ class ExternalProcess(QProcess):
 
     @staticmethod
     def read_env():
-        dir_path = os.getcwd()
-        dir_path = os.path.normpath(os.path.join(dir_path,
+        dir_path_abs = os.getcwd()
+        print(dir_path_abs)
+        dir_path = os.path.normpath(os.path.join(dir_path_abs,
                                  '/main/assets/venv.txt'))
         env = QProcessEnvironment.systemEnvironment()
         try:
-            with open(dir_path + '/main/assets/venv.txt', 'r') as f:
+            with open(dir_path, 'r') as f:
                 venv_dir = f.read()
                 f.close()
         except Exception:
@@ -405,7 +406,8 @@ class CentralWidget(QWidget):
         self.logs.appendPlainText('Process starts running')
 
         file = os.getcwd()
-        file = os. path.normpath(os.path.join(file,
+        print(file)
+        file = os.path.normpath(os.path.join(file,
                                 '/main/neuralnetwork.py'))
 
         self.process_args = [file]
@@ -457,7 +459,7 @@ class CentralWidget(QWidget):
     def handle_stderr(self):
         data = self.process.readAllStandardError()
         stderr = bytes(data).decode(self.process.codec)
-        self.message(stderr)
+        #self.message(stderr)
 
     def handle_stdout(self):
         data = self.process.readAllStandardOutput()
