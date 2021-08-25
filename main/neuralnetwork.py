@@ -1,12 +1,13 @@
 import os, argparse
 import io
 import torch
-
+import pandas as pd
+import seaborn as sns
 from torch import nn
 from collections import Counter, OrderedDict
 from torchvision import transforms, datasets, models
 import matplotlib.pyplot as plt
-
+import numpy as np
 
 class NeuralNetwork(object):
 
@@ -378,7 +379,11 @@ class NeuralNetwork(object):
                     confusion_matrix[t.long(), p.long()] += 1
 
         confusion_matrix = confusion_matrix.numpy()
-        print(confusion_matrix)
+        confusion_matrix = pd.DataFrame(confusion_matrix/ np.sum(confusion_matrix) * 100)
+        plt.figure(figsize=(12, 7))
+        sns.heatmap(confusion_matrix, annot=True)
+        save_path = os.path.normpath(os.path.join(self.save_path, 'confusion.png'))
+        plt.savefig(save_path, dpi=300)
 
 if __name__ == '__main__':
 

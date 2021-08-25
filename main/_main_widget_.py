@@ -265,7 +265,6 @@ class ExternalProcess(QProcess):
                 f.close()
         except Exception:
                venv_dir = None
-
         env.insert("PYTHONPATH", venv_dir)
 
         return env
