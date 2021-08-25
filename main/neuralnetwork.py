@@ -279,12 +279,14 @@ class NeuralNetwork(object):
     def validate_model(self, valid_data, criterion, device):
 
         val_loss, accuracy = 0, 0
-
+        y_pred, y_true = [], []
         # Iterate around all images in validation dataset
         for img, label in valid_data:
             img, label = img.to(device), label.to(device)
 
             output = self.model.forward(img)
+            y_pred.extend(torch.max(output).numpy())  # Save Prediction
+            y_true.extend(label)  # Save Truth
             val_loss += criterion(output, label).item()
 
             probabilities = torch.exp(output)
@@ -292,7 +294,7 @@ class NeuralNetwork(object):
             equality = (label.data == probabilities.max(dim=1)[1])
             accuracy += equality.type(torch.FloatTensor).mean()
 
-        return val_loss, accuracy
+        return val_loss, accuracy, y_pred
 
     def train_model(self, device='cpu'):
         # Save losses for plotting them
