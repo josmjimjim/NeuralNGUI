@@ -329,7 +329,7 @@ class NeuralNetwork(object):
                 optimizer.step()
 
                 running_loss += loss.item()
-                running_loss_list.append(running_loss)
+                running_loss_list.append(np.mean(running_loss))
 
             # Validate model with not grad for speed
             self.model.eval()
@@ -370,7 +370,7 @@ class NeuralNetwork(object):
         confusion_matrix = torch.zeros(num_class, num_class)
 
         with torch.no_grad():
-            for i, (inputs, classes) in enumerate(valid_dataset):
+            for inputs, classes in valid_dataset:
                 inputs = inputs.to(device)
                 classes = classes.to(device)
                 outputs = self.model.forward(inputs)
