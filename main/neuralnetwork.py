@@ -370,7 +370,7 @@ class NeuralNetwork(object):
         confusion_matrix = torch.zeros(num_class, num_class)
 
         with torch.no_grad():
-            for inputs, classes in valid_dataset:
+            for i, (inputs, classes) in enumerate(valid_dataset):
                 inputs = inputs.to(device)
                 classes = classes.to(device)
                 outputs = self.model.forward(inputs)
