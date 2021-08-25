@@ -286,7 +286,8 @@ class NeuralNetwork(object):
             img, label = img.to(device), label.to(device)
 
             output = self.model.forward(img)
-            y_pred.extend(torch.max(output).numpy())  # Save Prediction
+            out = (torch.max(torch.exp(output), 1)[1]).data.cpu().numpy()
+            y_pred.extend(out)  # Save Prediction
             y_true.extend(label)  # Save Truth
             val_loss += criterion(output, label).item()
 
