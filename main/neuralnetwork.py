@@ -378,7 +378,14 @@ class NeuralNetwork(object):
                 for t, p in zip(classes.view(-1), preds.view(-1)):
                     confusion_matrix[t.long(), p.long()] += 1
 
-        print(confusion_matrix)
+        cf_matrix = confusion_matrix.numpy()
+        
+        df_cm = pd.DataFrame(cf_matrix, index = [i for i in range(num_class)],
+                     columns = [i for i in range(num_class)])
+        plt.figure(figsize=(12, 7))
+        sns.heatmap(df_cm, annot=True)
+        save_path = os.path.normpath(os.path.join(self.save_path, 'confusion.png'))
+        plt.savefig(save_path, dpi=300)
 
 
     @staticmethod
