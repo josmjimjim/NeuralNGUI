@@ -287,8 +287,8 @@ class NeuralNetwork(object):
 
             output = self.model.forward(img)
             out = (torch.max(torch.exp(output), 1)[1]).data.cpu().numpy()
-            y_pred.append(out)  # Save Prediction
-            y_true.append(label.data.cpu().numpy())  # Save Truth
+            y_pred.extend(out)  # Save Prediction
+            y_true.extend(label.data.cpu().numpy())  # Save Truth
             val_loss += criterion(output, label).item()
 
             probabilities = torch.exp(output)

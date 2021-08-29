@@ -1,4 +1,3 @@
-import os
 from pylatex import Document, Section, Subsection, Command
 from pylatex.utils import italic, NoEscape
 
@@ -21,4 +20,4 @@ def generate_report():
 
 if __name__ == '__main__':
    doc = generate_report()
-   doc.generate_pdf('basic_maketitle', clean_tex=False)
+   doc.generate_pdf('basic_maketitle', clean_tex=False, compiler='pdflatex')
