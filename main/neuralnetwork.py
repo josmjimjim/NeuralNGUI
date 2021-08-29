@@ -359,7 +359,7 @@ class NeuralNetwork(object):
         torch.save(self.model.state_dict(), model_path)
 
         # Plot results
-        plt.plot(epochs_list, running_loss_list label='Training loss')
+        plt.plot(epochs_list, running_loss_list, label='Training loss')
         plt.plot(epochs_list, val_loss_list, label='Validation loss')
         plt.xlabel("Epochs")
         plt.ylabel("Loss")
