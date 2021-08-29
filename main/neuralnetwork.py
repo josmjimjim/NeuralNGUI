@@ -286,9 +286,6 @@ class NeuralNetwork(object):
             img, label = img.to(device), label.to(device)
 
             output = self.model.forward(img)
-            out = (torch.max(torch.exp(output), 1)[1]).data.cpu().numpy()
-            y_pred.extend(out)  # Save Prediction
-            y_true.extend(label.data.cpu().numpy())  # Save Truth
             val_loss += criterion(output, label).item()
 
             probabilities = torch.exp(output)
@@ -296,12 +293,11 @@ class NeuralNetwork(object):
             equality = (label.data == probabilities.max(dim=1)[1])
             accuracy += equality.type(torch.FloatTensor).mean()
 
-        return val_loss, accuracy, y_pred, y_true
+        return val_loss, accuracy
 
     def train_model(self, device='cpu'):
         # Save losses for plotting them
         running_loss_list, val_loss_list = [], []
-        y_true_list, y_pred_list = [], []
         epochs_list = []
 
         # Define/calculate parameters
@@ -339,12 +335,10 @@ class NeuralNetwork(object):
             self.model.eval()
 
             with torch.no_grad():
-                val_loss, accuracy, y_pred, y_true = self.validate_model(valid_dataset, criterion, device)
+                val_loss, accuracy = self.validate_model(valid_dataset, criterion, device)
                 val_loss_list.append(val_loss / len(valid_dataset))
 
             running_loss_list.append(running_loss / steps)
-            y_true_list.append(y_true)
-            y_pred_list.append(y_pred)
 
             print('Epoch: {}/{} '.format(j + 1, epochs),
                   '\tTraining Loss: {:.3f} '.format(running_loss / steps),
@@ -365,8 +359,8 @@ class NeuralNetwork(object):
         torch.save(self.model.state_dict(), model_path)
 
         # Plot results
-        plt.plot(running_loss_list, label='Training loss')
-        plt.plot(val_loss_list, label='Validation loss')
+        plt.plot(epochs_list, running_loss_list label='Training loss')
+        plt.plot(epochs_list, val_loss_list, label='Validation loss')
         plt.xlabel("Epochs")
         plt.ylabel("Loss")
         plt.legend(frameon=False)
@@ -374,13 +368,18 @@ class NeuralNetwork(object):
         plt.savefig(save_path, dpi=300)
 
         # Confusion matrix
-        cf_matrix = confusion_matrix(y_true_list, y_pred_list)
-        df_cm = pd.DataFrame(cf_matrix, index = [i for i in range(num_class)],
-                     columns = [i for i in range(num_class)])
-        plt.figure(figsize=(12, 7))
-        sns.heatmap(df_cm, annot=True)
-        save_path = os.path.normpath(os.path.join(self.save_path, 'confusion.png'))
-        plt.savefig(save_path, dpi=300)
+        confusion_matrix = torch.zeros(num_class, num_class)
+        with torch.no_grad():
+            for i, (inputs, classes) in enumerate(valid_dataset):
+                inputs = inputs.to(device)
+                classes = classes.to(device)
+                outputs = self.model(inputs)
+                _, preds = torch.max(outputs, 1)
+                for t, p in zip(classes.view(-1), preds.view(-1)):
+                    confusion_matrix[t.long(), p.long()] += 1
+
+        print(confusion_matrix)
+
 
     @staticmethod
     def training_report(dicts_param):
