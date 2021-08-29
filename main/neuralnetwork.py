@@ -301,6 +301,7 @@ class NeuralNetwork(object):
     def train_model(self, device='cpu'):
         # Save losses for plotting them
         running_loss_list, val_loss_list = [], []
+        y_true_list, y_pred_list = [], []
         epochs_list = []
 
         # Define/calculate parameters
@@ -342,6 +343,8 @@ class NeuralNetwork(object):
                 val_loss_list.append(val_loss / len(valid_dataset))
 
             running_loss_list.append(running_loss / steps)
+            y_true_list.extend(y_true)
+            y_pred_list.extend(y_pred)
 
             print('Epoch: {}/{} '.format(j + 1, epochs),
                   '\tTraining Loss: {:.3f} '.format(running_loss / steps),
@@ -371,10 +374,9 @@ class NeuralNetwork(object):
         plt.savefig(save_path, dpi=300)
 
         # Confusion matrix
-        cf_matrix = confusion_matrix(y_true, y_pred)
+        cf_matrix = confusion_matrix(y_true_list, y_pred_list)
         df_cm = pd.DataFrame(cf_matrix, index = [i for i in range(num_class)],
                      columns = [i for i in range(num_class)])
-
         plt.figure(figsize=(12, 7))
         sns.heatmap(df_cm, annot=True)
         save_path = os.path.normpath(os.path.join(self.save_path, 'confusion.png'))
