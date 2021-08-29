@@ -287,8 +287,8 @@ class NeuralNetwork(object):
 
             output = self.model.forward(img)
             out = (torch.max(torch.exp(output), 1)[1]).data.cpu().numpy()
-            y_pred.extend(out)  # Save Prediction
-            y_true.extend(label.data.cpu().numpy())  # Save Truth
+            y_pred.append(out)  # Save Prediction
+            y_true.append(label.data.cpu().numpy())  # Save Truth
             val_loss += criterion(output, label).item()
 
             probabilities = torch.exp(output)
@@ -343,8 +343,8 @@ class NeuralNetwork(object):
                 val_loss_list.append(val_loss / len(valid_dataset))
 
             running_loss_list.append(running_loss / steps)
-            y_true_list.extend(y_true)
-            y_pred_list.extend(y_pred)
+            y_true_list.append(y_true)
+            y_pred_list.append(y_pred)
 
             print('Epoch: {}/{} '.format(j + 1, epochs),
                   '\tTraining Loss: {:.3f} '.format(running_loss / steps),
@@ -381,6 +381,11 @@ class NeuralNetwork(object):
         sns.heatmap(df_cm, annot=True)
         save_path = os.path.normpath(os.path.join(self.save_path, 'confusion.png'))
         plt.savefig(save_path, dpi=300)
+
+    @staticmethod
+    def training_report(dicts_param):
+        pass
+
 
 if __name__ == '__main__':
 
