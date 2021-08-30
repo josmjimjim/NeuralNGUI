@@ -281,9 +281,7 @@ class CentralWidget(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        # Logs file path
-        self.log_file = os.path.join(self.save.directory, 'log.txt')
-        os.remove(self.log_file)
+
         # Create instances of object to call in initializeUI
         self.check_button = CheckPreTrained(self)
         self.check_button.stateChanged.connect(self.updateUI)
@@ -466,7 +464,9 @@ class CentralWidget(QWidget):
         data = self.process.readAllStandardOutput()
         stdout = bytes(data).decode(self.process.codec)
         self.message(stdout)
-        with open(self.log_file, 'a') as f:
+        # Logs file path
+        log_file = os.path.join(self.save.directory, 'log.txt')
+        with open(log_file, 'a') as f:
             f.writelines(stdout)
 
 if __name__ == '__main__':
