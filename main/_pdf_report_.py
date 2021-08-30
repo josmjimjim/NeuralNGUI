@@ -47,17 +47,17 @@ class Report:
 
         with doc.create(Section('Resultados del entrenamiento')):
 
-            with doc.create(Figure(position='H')) as loss:
-                loss.add_image(self.img_path1, width=NoEscape(r'0.65\linewidth'))
+            with doc.create(Figure(position='h!')) as loss:
+                loss.add_image(self.img_path1, width=NoEscape(r'0.45\linewidth'))
                 loss.add_caption('Resultados del entrenamiento')
 
-            with doc.create(Figure(position='H')) as confusion:
-                confusion.add_image(self.img_path2, width=NoEscape(r'0.65\linewidth'))
+            with doc.create(Figure(position='h!')) as confusion:
+                confusion.add_image(self.img_path2, width=NoEscape(r'0.45\linewidth'))
                 confusion.add_caption('Confusion matrix')
 
         with doc.create(Section('Información sobre la red')):
 
-            with doc.create(Figure(position='H')) as net:
+            with doc.create(Figure(position='h!')) as net:
                 net.add_image(self.model, width=NoEscape(r'0.65\linewidth'))
                 net.add_caption('Estructura de la red')
 
@@ -68,7 +68,7 @@ class Report:
             doc.append(logs)
 
         try:
-            doc.generate_pdf(self.pdf, clean_tex=False)
+            doc.generate_pdf(self.pdf, clean_tex=False, compiler='pdflatex')
         except Exception as e:
             print(e)
 
