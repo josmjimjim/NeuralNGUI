@@ -47,7 +47,9 @@ class Report:
 
         with doc.create(Section('Información sobre la red')):
 
-            doc.append(self.model)
+            with doc.create(Figure(position='h!')) as net:
+                net.add_image(self.model, width='480px')
+                net.add_caption('Estructura de la red')
 
         with doc.create(Section('Resultados del entrenamiento')):
 
