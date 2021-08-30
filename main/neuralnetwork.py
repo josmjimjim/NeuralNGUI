@@ -393,7 +393,7 @@ class NeuralNetwork(object):
         batch = torch.rand(1, 3, 224, 224)
         yhat = self.model(batch)
         make_dot(yhat,
-        params=dict(list(self.model.parameters())
+        params=dict(list(self.model.named_parameters())
                     )).render(save_path_net, format="png")
 
         model_layer = save_path_net + '.png'
