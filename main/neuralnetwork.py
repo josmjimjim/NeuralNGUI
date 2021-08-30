@@ -318,7 +318,6 @@ class NeuralNetwork(object):
             self.model.train()
             for img, label in train_dataset:
                 steps += 1
-                print(img.shape)
                 img, label = img.to(device), label.to(device)
 
                 optimizer.zero_grad()
