@@ -390,7 +390,7 @@ class NeuralNetwork(object):
         #Model layers graph
         print(self.model)
 
-        batch = train_dataset[0]
+        batch = torch.rand(1, 224, 224)
         yhat = self.model(batch)  # Give dummy batch to forward().
         save_path_net = os.path.normpath(os.path.join(self.save_path, 'report'))
         make_dot(yhat, params=dict(list(
