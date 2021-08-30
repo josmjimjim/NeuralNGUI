@@ -386,7 +386,7 @@ class NeuralNetwork(object):
         plt.savefig(save_path_cfm, dpi=300)
 
         # Generate report
-        model_layer = print(self.model)
+        model_layer = self.model.state_dict()
         save_path_pdf = os.path.normpath(os.path.join(self.save_path, 'report'))
         self.training_report(params, model_layer,
                     save_path_loss, save_path_cfm,
