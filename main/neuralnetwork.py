@@ -1,6 +1,7 @@
 import os, argparse
 import io
 import torch
+from torchviz import make_dot
 import pandas as pd
 import seaborn as sns
 from torch import nn
@@ -386,7 +387,16 @@ class NeuralNetwork(object):
         plt.savefig(save_path_cfm, dpi=300)
 
         # Generate report
-        model_layer = str(self.model)
+        #Model layers graph
+        print(self.model)
+
+        batch = next(iter(train_dataset))
+        yhat = self.model(batch.text)  # Give dummy batch to forward().
+        save_path_net = os.path.normpath(os.path.join(self.save_path, 'report'))
+        make_dot(yhat, params=dict(list(
+        self.model.named_parameters()))).render(save_path_net, format="png")
+        model_layer = save_path_net + '.png'
+
         save_path_pdf = os.path.normpath(os.path.join(self.save_path, 'report'))
         log_path = os.path.normpath(os.path.join(self.save_path, 'log.txt'))
         self.training_report(params, model_layer,
