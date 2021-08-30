@@ -390,8 +390,8 @@ class NeuralNetwork(object):
         #Model layers graph
         print(self.model)
 
-        batch = next(iter(train_dataset))
-        yhat = self.model(batch.text)  # Give dummy batch to forward().
+        batch = train_dataset[0]
+        yhat = self.model(batch)  # Give dummy batch to forward().
         save_path_net = os.path.normpath(os.path.join(self.save_path, 'report'))
         make_dot(yhat, params=dict(list(
         self.model.named_parameters()))).render(save_path_net, format="png")
