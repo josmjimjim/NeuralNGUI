@@ -465,7 +465,7 @@ class CentralWidget(QWidget):
         self.message(stdout)
         log_file = os.path.join(self.save.directory, 'log.txt')
         with open(log_file, 'a') as f:
-            f.writelines('\n'.join(data))
+            f.writelines('\n'.join(stdout)
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
