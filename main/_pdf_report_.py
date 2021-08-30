@@ -68,7 +68,7 @@ class Report:
             doc.append(logs)
 
         try:
-            doc.generate_pdf(self.pdf, clean_tex=False, compiler='pdflatex')
+            doc.generate_pdf(self.pdf, clean_tex=False)
         except Exception as e:
             print(e)
 
