@@ -74,7 +74,7 @@ class DragandDropFiles(QListWidget):
         icon = QListWidgetItem()
         icon.setText(self.file_path.split("/")[-1])
         file = os.getcwd()
-        file = os.path.join(file, 'assets/file.svg')
+        file = os.path.join(file, 'main/assets/file.svg')
         icon.setIcon(QIcon(file))
         self.addItem(icon)
 
