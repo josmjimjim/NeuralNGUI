@@ -19,7 +19,6 @@ class NeuralNetwork(object):
         'vgg16': (25088, 4096),
         'resnet34': (512, 128),
         'inceptionv3': (2048, 512),
-        'googlenet': (1024, 256),
         'vgg19': (25088, 4096),
         'mobilenetv2': (1280, 320),
         'mobilenetv3large': (960, 240),
@@ -30,8 +29,7 @@ class NeuralNetwork(object):
     }
 
     # Tuple with classifier definitions
-    __dict_fc = ('resnet18', 'inceptionv3',
-                'googlenet','resnet34',
+    __dict_fc = ('resnet18', 'inceptionv3', 'resnet34',
                 'resnet152', 'wideresnet50')
 
     __dict_clsf = ('alexnet', 'vgg16',
@@ -72,7 +70,7 @@ class NeuralNetwork(object):
             train_data = datasets.ImageFolder(self.train_path, transform=tform)
             # Number of train data
             count, data_len = self.getnumber_imagesdataset(train_data)
-            num_class = self.getnumber_classes(train_data)
+            num_class, class_idx = self.getnumber_classes(train_data)
 
             if self.test_path is not None:
                 test_data = datasets.ImageFolder(self.test_path, transform=tform)
@@ -101,7 +99,7 @@ class NeuralNetwork(object):
                 'TestLoader': test_loader,
                 }
 
-            return __dict_loader, count, data_len, num_class
+            return __dict_loader, count, data_len, num_class, class_idx
 
         except FileNotFoundError:
             return None, None, None, None
@@ -129,17 +127,18 @@ class NeuralNetwork(object):
 
     def load_normalized_datset(self, img_size=224):
         tform = self.transform_images(img_size)
-        img, _, _, _ = self.load_dataset(tform)
+        img, _, _, _, _ = self.load_dataset(tform)
         mean, std = self.compute_mean_std(img)
         tform = self.transform_images(img_size, mean=mean, std=std)
-        image_loader, count, data_len, num_class = self.load_dataset(tform)
+        image_loader, count, data_len, num_class, class_idx = self.load_dataset(tform)
         # Dictionary with parameters
-        __dict_load = OrderedDict([
-            ('Number of images in dataset', data_len),
-            ('Number of images per class', count),
-            ('Number of classes', num_class),
-            ('Mean', mean), ('Std', std),
-        ])
+        __dict_load = {
+            'Number of images in dataset': data_len,
+            'Number of images per class': count,
+            'Number of classes': num_class,
+            'Class idx': class_idx,
+            'Mean': mean, 'Std': std,
+        }
 
         print('Dataset load and nomalized: Completed\n',
               'Dataset statistics:\n',
@@ -148,7 +147,8 @@ class NeuralNetwork(object):
               '\tNumber of classes: {}\n'.format(num_class),
               '\tNumber of classe-images:\n{}\n'.format(count),
               '\tDataset mean: {}\n'.format(mean),
-              '\tDataset std: {}\n'.format(std)
+              '\tDataset std: {}\n'.format(std),
+              '\tClass id: {}\n'.format(class_idx),
               )
         return image_loader, __dict_load
 
@@ -161,7 +161,8 @@ class NeuralNetwork(object):
     @staticmethod
     def getnumber_classes(data):
         data_count = len(data.classes)
-        return data_count
+        data_id = data.class_to_idx
+        return data_count, data_id
 
     def select_model(self):
 
@@ -178,8 +179,6 @@ class NeuralNetwork(object):
             self.model = models.resnet34()
         elif name == r'inceptionv3':
             self.model = models.inception_v3()
-        elif name == r'googlenet':
-            self.model = models.googlenet()
         elif name == r'vgg19':
             self.model = models.vgg19()
         elif name == r'mobilenetv2':
@@ -200,7 +199,7 @@ class NeuralNetwork(object):
         model_dict = self.model.state_dict()
 
         if self.weights_path:
-            if name not in('inceptionv3', 'googlenet'):
+            if name not in('inceptionv3',):
                 with open(self.weights_path, 'rb') as f:
                     buffer = io.BytesIO(f.read())
                     buffer.seek(0)
