@@ -1,7 +1,7 @@
 import os, argparse
 import io
 import torch
-import hiddenlayer as hl
+from torchviz import make_dot
 import pandas as pd
 import seaborn as sns
 from torch import nn
@@ -389,12 +389,12 @@ class NeuralNetwork(object):
         #Model layers graph
         print(self.model)
 
-        save_path_net = os.path.normpath(os.path.join(self.save_path, 'report'))
+        save_path_net = os.path.normpath(os.path.join(self.save_path, 'net'))
         batch = torch.rand(1, 3, 224, 224)
-        transforms = [hl.transforms.Prune('Constant')]  # Removes Constant nodes from graph.
-        graph = hl.build_graph(self.model, batch, transforms=transforms)
-        graph.theme = hl.graph.THEMES['blue'].copy()
-        graph.save(save_path_net, format='png')
+        yhat = self.model(batch)
+        make_dot(yhat,
+        params=dict(list(self.model.named_parameters())
+                    )).render(save_path_net, format="png")
 
         model_layer = save_path_net + '.png'
 
