@@ -7,8 +7,7 @@ from torch import nn
 from collections import Counter, OrderedDict
 from torchvision import transforms, datasets, models
 import matplotlib.pyplot as plt
-import numpy as np
-from sklearn.metrics import confusion_matrix
+from _pdf_report_ import Report
 
 class NeuralNetwork(object):
 
@@ -363,8 +362,8 @@ class NeuralNetwork(object):
         plt.xlabel("Epochs")
         plt.ylabel("Loss")
         plt.legend(frameon=False)
-        save_path = os.path.normpath(os.path.join(self.save_path, 'loss.png'))
-        plt.savefig(save_path, dpi=300)
+        save_path_loss = os.path.normpath(os.path.join(self.save_path, 'loss.png'))
+        plt.savefig(save_path_loss, dpi=300)
 
         # Confusion matrix
         confusion_matrix = torch.zeros(num_class, num_class)
@@ -383,13 +382,20 @@ class NeuralNetwork(object):
                      columns = [i for i in range(num_class)])
         plt.figure(figsize=(12, 7))
         sns.heatmap(df_cm, annot=True)
-        save_path = os.path.normpath(os.path.join(self.save_path, 'confusion.png'))
-        plt.savefig(save_path, dpi=300)
+        save_path_cfm = os.path.normpath(os.path.join(self.save_path, 'confusion.png'))
+        plt.savefig(save_path_cfm, dpi=300)
 
+        # Generate report
+        model_layer = print(self.model)
+        save_path_pdf = os.path.normpath(os.path.join(self.save_path, 'report'))
+        self.training_report(params, model_layer,
+                    save_path_loss, save_path_cfm,
+                    save_path_pdf)
 
     @staticmethod
-    def training_report(dicts_param):
-        pass
+    def training_report(param, model, img_path1, img_path2, pdf_path):
+        report = Report(param, model, img_path1, img_path2, pdf_path)
+        report.generate_report()
 
 
 if __name__ == '__main__':
