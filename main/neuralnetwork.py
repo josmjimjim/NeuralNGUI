@@ -318,7 +318,7 @@ class NeuralNetwork(object):
             self.model.train()
             for img, label in train_dataset:
                 steps += 1
-
+                print(img.shape)
                 img, label = img.to(device), label.to(device)
 
                 optimizer.zero_grad()
@@ -390,7 +390,7 @@ class NeuralNetwork(object):
         #Model layers graph
         print(self.model)
 
-        batch = torch.rand(1, 224, 224)
+        batch = torch.rand(1, 3, 224, 224)
         yhat = self.model(batch)  # Give dummy batch to forward().
         save_path_net = os.path.normpath(os.path.join(self.save_path, 'report'))
         make_dot(yhat, params=dict(list(
