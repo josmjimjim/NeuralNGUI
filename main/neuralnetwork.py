@@ -388,13 +388,14 @@ class NeuralNetwork(object):
         # Generate report
         model_layer = str(self.model)
         save_path_pdf = os.path.normpath(os.path.join(self.save_path, 'report'))
+        log_path = os.path.normpath(os.path.join(self.save_path, 'log.txt'))
         self.training_report(params, model_layer,
                     save_path_loss, save_path_cfm,
-                    save_path_pdf)
+                    save_path_pdf, log_path)
 
     @staticmethod
-    def training_report(param, model, img_path1, img_path2, pdf_path):
-        report = Report(param, model, img_path1, img_path2, pdf_path)
+    def training_report(param, model, img_path1, img_path2, pdf_path, log):
+        report = Report(param, model, img_path1, img_path2, pdf_path, log)
         report.generate_report()
 
 
