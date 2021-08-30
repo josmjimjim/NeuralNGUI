@@ -3,12 +3,13 @@ from pylatex.utils import NoEscape
 
 class Report:
 
-    def __init__(self, param, model, img_path1, img_path2, pdf):
+    def __init__(self, param, model, img_path1, img_path2, pdf, log):
         self.param = param
         self.model = model
         self.img_path1 = img_path1
         self.img_path2 = img_path2
         self.pdf = pdf
+        self.log = log
 
     def generate_report(self):
 
@@ -57,6 +58,12 @@ class Report:
             with doc.create(Figure(position='h!')) as confusion:
                 confusion.add_image(self.img_path2, width='480px')
                 confusion.add_caption('Confusion matrix')
+
+        with doc.create(Section('Log e información del entrenamiento')):
+            with open(self.log, 'r') as file:
+                logs = file.read()
+                file.close()
+            doc.append(logs)
 
         try:
             doc.generate_pdf(self.pdf, clean_tex=False, compiler='pdflatex')
