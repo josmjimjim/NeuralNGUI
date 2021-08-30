@@ -51,11 +51,11 @@ class Report:
         with doc.create(Section('Resultados del entrenamiento')):
 
             with doc.create(Figure(position='h!')) as loss:
-                loss.add_image(self.img_path1, width='\\textwidth')
+                loss.add_image(self.img_path1, width='480px')
                 loss.add_caption('Resultados del entrenamiento')
 
             with doc.create(Figure(position='h!')) as confusion:
-                confusion.add_image(self.img_path2, width='\\textwidth')
+                confusion.add_image(self.img_path2, width='480px')
                 confusion.add_caption('Confusion matrix')
 
         try:
