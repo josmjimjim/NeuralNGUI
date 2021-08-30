@@ -47,17 +47,17 @@ class Report:
 
         with doc.create(Section('Información sobre la red')):
 
-            with doc.create(Figure(position='h!')) as net:
+            with doc.create(Figure(position='H')) as net:
                 net.add_image(self.model, width='480px')
                 net.add_caption('Estructura de la red')
 
         with doc.create(Section('Resultados del entrenamiento')):
 
-            with doc.create(Figure(position='h!')) as loss:
+            with doc.create(Figure(position='H')) as loss:
                 loss.add_image(self.img_path1, width='480px')
                 loss.add_caption('Resultados del entrenamiento')
 
-            with doc.create(Figure(position='h!')) as confusion:
+            with doc.create(Figure(position='H')) as confusion:
                 confusion.add_image(self.img_path2, width='480px')
                 confusion.add_caption('Confusion matrix')
 
