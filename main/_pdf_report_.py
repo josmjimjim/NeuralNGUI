@@ -36,7 +36,7 @@ class Report:
                 with table.create(Center()) as centered:
                     with centered.create(Tabular('c|c')) as tabular:
                         tabular.add_hline()
-                        tabular.add_row((r'Número de imágenes', self.param['Number of images in dataset']))
+                        tabular.add_row((r'Número de batches', self.param['Number of images in dataset']))
                         tabular.add_row((r'Clases    empleadas', self.param['Number of classes']))
                         tabular.add_row((r'Desviación estandar', self.param['Std']))
                         tabular.add_row((r'Media del dataset', self.param['Mean']))
