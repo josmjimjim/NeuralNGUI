@@ -311,6 +311,7 @@ class NeuralNetwork(object):
 
         self.select_model()
         self.model_classifier(num_class)
+        self.model.to(device)
         optimizer = self.select_optimizer()
         criterion = nn.NLLLoss()
 
