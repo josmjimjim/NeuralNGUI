@@ -59,19 +59,19 @@ class Report:
                 confusion.add_image(self.img_path3, width=NoEscape(r'0.45\linewidth'))
                 confusion.add_caption('Confusion matrix')
 
-        doc.append(Command('newpage'))
-
-        with doc.create(Section('Información sobre la red')):
-            with doc.create(Figure(position='h!')) as net:
-                doc.append(Command('includegraphics', options=['width=12cm', 'height=22cm',
-                'keepaspectratio'], arguments=self.model))
-                net.add_caption('Estructura de la red')
-
         with doc.create(Section('Log e información del entrenamiento')):
             with open(self.log, 'r') as file:
                 logs = file.read()
                 file.close()
             doc.append(logs)
+
+        doc.append(Command('newpage'))
+        
+        with doc.create(Section('Información sobre la red')):
+            with doc.create(Figure(position='h!')) as net:
+                doc.append(Command('includegraphics', options=['width=12cm', 'height=22cm',
+                'keepaspectratio'], arguments=self.model))
+                net.add_caption('Estructura de la red')
 
         try:
             doc.generate_pdf(self.pdf, clean_tex=False, compiler='pdflatex')
