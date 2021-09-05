@@ -380,7 +380,7 @@ class NeuralNetwork(object):
                         self.epochs, self.save_path, 'acc')
 
         # Confussion matrix
-        tag = params['Number of images per class'].keys()
+        tag = params['Number of images per class'].index
         self.confussion_matrix(dataloaders['test'], num_classes,
                                tag)
         # Generate report
