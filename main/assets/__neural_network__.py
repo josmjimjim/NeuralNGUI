@@ -298,7 +298,8 @@ class NeuralNetwork(object):
         scheduler = ReduceLROnPlateau(optimizer, 'min')
 
         # Initialize variables
-        val_acc_history = []
+        train_loss_history, val_loss_history = [], []
+        train_acc_history, val_acc_history = [], []
         best_model_wts = copy.deepcopy(self.model.state_dict())
         best_acc = 0.0
 
@@ -340,29 +341,32 @@ class NeuralNetwork(object):
                 # Calculate loss and accuracy for each phase
                 epoch_loss = running_loss / len(dataloaders[phase].dataset)
                 epoch_acc = running_corrects.double() / len(dataloaders[phase].dataset)
-                # Print statistics of process
+                # Print statistics of process and store them
                 if phase == 'train':
+                    train_acc_history.append(epoch_acc)
+                    train_loss_history.append(epoch_loss)
                     print('Epoch: {}/{}\n'.format(j + 1, epochs),
                           10 * '-', '\n',
                           '\tTrain Loss: {:.3f} '.format(epoch_loss),
                           '\tTrain Accuracy: {:.3f} '.format(epoch_acc),
                           )
                 else:
+                    val_acc_history.append(epoch_acc)
+                    val_loss_history.append(epoch_loss)
                     print('\tVal Loss: {:.3f} '.format(epoch_loss),
                           '\tVal Accuracy: {:.3f} '.format(epoch_acc),
                           )
+                    # Update learning rate
+                    scheduler.step(epoch_loss)
                 # deep copy the model
                 if phase == 'test' and epoch_acc > best_acc:
                     best_acc = epoch_acc
                     best_model_wts = copy.deepcopy(self.model.state_dict())
-                if phase == 'test':
-                    val_acc_history.append(epoch_acc)
-                    scheduler.step(epoch_loss)
+
 
         time_elapsed = time.time() - since
         print('Training complete in {:.0f}m {:.0f}s'.format(time_elapsed // 60, time_elapsed % 60))
         print('Best val Acc: {:4f}'.format(best_acc))
-
 
         # Save
         model_path = os.path.normpath(os.path.join(self.save_path,
@@ -370,34 +374,13 @@ class NeuralNetwork(object):
         torch.save(best_model_wts, model_path)
 
         # Plot results
-        #plt.plot(epochs_list, running_loss_list, label='Training loss')
-        #plt.plot(epochs_list, val_loss_list, label='Validation loss')
-        #plt.xlabel("Epochs")
-        #plt.ylabel("Loss")
-        #plt.legend(frameon=False)
-        #save_path_loss = os.path.normpath(os.path.join(self.save_path, 'loss.png'))
-        #plt.savefig(save_path_loss, dpi=300)
+        self.plot_graph(train_loss_history, val_loss_history,
+                        train_acc_history, val_acc_history,
+                        self.epochs, self.save_path)
 
-        # Confusion matrix
-        confusion_matrix = torch.zeros(num_classes, num_classes)
-        with torch.no_grad():
-            for i, (inputs, classes) in enumerate(dataloaders['test']):
-                inputs = inputs.to(device)
-                classes = classes.to(device)
-                outputs = self.model(inputs)
-                _, preds = torch.max(outputs, 1)
-                for t, p in zip(classes.view(-1), preds.view(-1)):
-                    confusion_matrix[t.long(), p.long()] += 1
-
-        cf_matrix = confusion_matrix.numpy()
-
-        df_cm = pd.DataFrame(cf_matrix, index=[i for i in range(num_classes)],
-                             columns=[i for i in range(num_classes)])
-        plt.figure(figsize=(12, 7))
-        sns.heatmap(df_cm, annot=True)
-        save_path_cfm = os.path.normpath(os.path.join(self.save_path, 'confusion.png'))
-        plt.savefig(save_path_cfm, dpi=300)
-
+        # Confussion matrix
+        self.confussion_matrix(dataloaders['test'], num_classes,
+                               params['Number of images per class'])
         # Generate report
         # Model layers graph
         print(self.model)
@@ -423,6 +406,46 @@ class NeuralNetwork(object):
         # report.generate_report()
         pass
 
+    @staticmethod
+    def plot_graph(train_loss, val_loss, train_acc, val_acc, epochs, save_path):
+        # Plot results losses
+        plt.title("Training/Validation Loss vs number of epochs")
+        plt.plot(range(1, epochs+1), train_loss, label='Training loss')
+        plt.plot(range(1, epochs+1), val_loss, label='Validation loss')
+        plt.xlabel("Epochs")
+        plt.ylabel("Loss")
+        plt.legend(frameon=False)
+        save_path_loss = os.path.normpath(os.path.join(save_path, 'loss.png'))
+        plt.savefig(save_path_loss, dpi=300)
+        # Plot results accuracy
+        plt.title("Training/Validation Accuracy vs number of epochs")
+        plt.plot(range(1, epochs+1), train_acc, label='Training acc')
+        plt.plot(range(1, epochs+1), val_acc, label='Validation acc')
+        plt.xlabel("Epochs")
+        plt.ylabel("Accuracy")
+        plt.legend(frameon=False)
+        save_path_acc = os.path.normpath(os.path.join(save_path, 'acc.png'))
+        plt.savefig(save_path_acc, dpi=300)
+
+    def confussion_matrix(self, dataset, num_classes, tag):
+        # Confusion matrix
+        confusion_matrix = torch.zeros(num_classes, num_classes)
+        with torch.no_grad():
+            for i, (inputs, labels) in enumerate(dataset):
+                inputs, labels = inputs.to(device), labels.to(device)
+                outputs = self.model(inputs)
+                _, preds = torch.max(outputs, 1)
+                for t, p in zip(labels.view(-1), preds.view(-1)):
+                    confusion_matrix[t.long(), p.long()] += 1
+
+        cf_matrix = confusion_matrix.numpy()
+
+        df_cm = pd.DataFrame(cf_matrix, index=[i for i in range(tag)],
+                             columns=[i for i in range(tag)])
+        plt.figure(figsize=(12, 7))
+        sns.heatmap(df_cm, annot=True)
+        save_path_cfm = os.path.normpath(os.path.join(self.save_path, 'confusion.png'))
+        plt.savefig(save_path_cfm, dpi=300)
 
 
 if __name__ == '__main__':
