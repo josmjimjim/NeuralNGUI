@@ -1,6 +1,6 @@
 import os, argparse, time
 import torch
-# from torchviz import make_dot
+from torchviz import make_dot
 import pandas as pd
 import seaborn as sns
 from torch import nn
@@ -8,7 +8,7 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 from collections import Counter
 from torchvision import transforms, datasets, models
 import matplotlib.pyplot as plt
-# from _pdf_report_ import Report
+from _pdf_report_ import Report
 import copy
 
 
@@ -381,31 +381,27 @@ class NeuralNetwork(object):
 
         # Confussion matrix
         tag = params['Number of images per class'].index
-        self.confussion_matrix(dataloaders['test'], num_classes,
-                               tag)
-        # Generate report
+        self.confussion_matrix(dataloaders['test'], num_classes, tag)
+
         # Model layers graph
+        self.net_architecture()
         print(self.model)
+        
+        # Generate report
+        self.training_report(params, self.save_path)
 
-        # save_path_net = os.path.normpath(os.path.join(self.save_path, 'net'))
-        # batch = torch.rand(1, 3, 224, 224)
-        # yhat = self.model(batch)
-        # make_dot(yhat,
-        # params=dict(list(self.model.named_parameters())
-        #            )).render(save_path_net, format="png")
-
-        # model_layer = save_path_net + '.png'
-
-        # save_path_pdf = os.path.normpath(os.path.join(self.save_path, 'report'))
-        # log_path = os.path.normpath(os.path.join(self.save_path, 'log.txt'))
-        # self.training_report(params, model_layer,
-        # save_path_loss, save_path_cfm,
-        # save_path_pdf, log_path)
 
     @staticmethod
-    def training_report(param, model, img_path1, img_path2, pdf_path, log):
-        # report = Report(param, model, img_path1, img_path2, pdf_path, log)
-        # report.generate_report()
+    def training_report(param, save_path):
+        elements = ('net.png', 'loss.png', 'acc.png',
+                'confusion.png', 'report', 'log.txt')
+        path_list = []
+        for i in elements:
+            path_list.append(os.path.normpath(os.path.join(save_path, i)))
+
+        report = Report(param, path_list[0], path_list[1], path_list[2],
+                        path_list[3], path_list[4], path_list[5])
+        report.generate_report()
         pass
 
     @staticmethod
@@ -438,14 +434,21 @@ class NeuralNetwork(object):
                 _, preds = torch.max(outputs, 1)
                 for t, p in zip(labels.view(-1), preds.view(-1)):
                     confusion_matrix[t.long(), p.long()] += 1
-
         cf_matrix = confusion_matrix.numpy()
-
         df_cm = pd.DataFrame(cf_matrix, index=tag, columns=tag)
         plt.figure(figsize=(12, 7))
         sns.heatmap(df_cm, annot=True)
         save_path_cfm = os.path.normpath(os.path.join(self.save_path, 'confusion.png'))
         plt.savefig(save_path_cfm, dpi=300)
+
+    def net_architecture(self):
+        save_path_net = os.path.normpath(os.path.join(self.save_path, 'net'))
+        batch = torch.rand(1, 3, 224, 224)
+        yhat = self.model(batch)
+        make_dot(yhat,
+        params=dict(list(self.model.named_parameters())
+                    )).render(save_path_net, format="png")
+
 
 
 if __name__ == '__main__':
