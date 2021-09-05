@@ -63,8 +63,8 @@ class Report:
 
         with doc.create(Section('Información sobre la red')):
             with doc.create(Figure(position='h!')) as net:
-                doc.append(Command('includegraphics', options=['width=\linewidth', 'height=20cm',
-                'keepaspectratio'], arguments=self.model).dumps())
+                doc.append(Command('includegraphics', options=['width=12cm', 'height=22cm',
+                'keepaspectratio'], arguments=self.model))
                 net.add_caption('Estructura de la red')
 
         with doc.create(Section('Log e información del entrenamiento')):

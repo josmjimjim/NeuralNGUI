@@ -386,7 +386,7 @@ class NeuralNetwork(object):
         # Model layers graph
         self.net_architecture()
         print(self.model)
-        
+
         # Generate report
         self.training_report(params, self.save_path)
 
