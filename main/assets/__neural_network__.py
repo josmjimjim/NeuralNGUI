@@ -117,6 +117,8 @@ class NeuralNetwork(object):
         mean, std = self.compute_mean_std(img)
         tform = self.transform_images(img_size, mean=mean, std=std)
         image_loader, count, data_len, num_class = self.load_dataset(tform)
+        mean = tuple(map(lambda x: isinstance(x, float) and round(x, 3) or x, mean))
+        std = tuple(map(lambda x: isinstance(x, float) and round(x, 3) or x, std))
         # Dictionary with parameters
         __dict_load = {
             'Number of images in dataset': data_len,
