@@ -59,12 +59,12 @@ class Report:
                 confusion.add_image(self.img_path3, width=NoEscape(r'0.45\linewidth'))
                 confusion.add_caption('Confusion matrix')
 
-        Command('newpage')
+        doc.append(Command('newpage'))
 
         with doc.create(Section('Información sobre la red')):
             with doc.create(Figure(position='h!')) as net:
-                Command('includegraphics', options=['width=\linewidth', 'height=20cm',
-                'keepaspectratio'], arguments=self.model).dumps()
+                doc.append(Command('includegraphics', options=['width=\linewidth', 'height=20cm',
+                'keepaspectratio'], arguments=self.model).dumps())
                 net.add_caption('Estructura de la red')
 
         with doc.create(Section('Log e información del entrenamiento')):
