@@ -452,8 +452,8 @@ if __name__ == '__main__':
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(device)
-    neural = NeuralNetwork('inceptionv3', 'SGD', 12,
-                      2, 0.001, '/Users/josemjimenez/Desktop/11',
+    neural = NeuralNetwork('alexnet', 'Adam', 12,
+                      2, 0.01, '/Users/josemjimenez/Desktop/11',
                       '/Users/josemjimenez/Desktop/NeuralNGUI/NeuralNGUI_main/train',
                       '/Users/josemjimenez/Desktop/NeuralNGUI/NeuralNGUI_main/test', None
                     )
