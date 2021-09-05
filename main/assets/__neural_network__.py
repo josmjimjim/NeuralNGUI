@@ -375,8 +375,9 @@ class NeuralNetwork(object):
 
         # Plot results
         self.plot_graph(train_loss_history, val_loss_history,
-                        train_acc_history, val_acc_history,
-                        self.epochs, self.save_path)
+                        self.epochs, self.save_path, 'loss')
+        self.plot_graph(train_acc_history, val_acc_history,
+                        self.epochs, self.save_path, 'acc')
 
         # Confussion matrix
         tag = params['Number of images per class'].keys()
@@ -408,25 +409,24 @@ class NeuralNetwork(object):
         pass
 
     @staticmethod
-    def plot_graph(train_loss, val_loss, train_acc, val_acc, epochs, save_path):
-        # Plot results losses
-        plt.title("Training/Validation Loss vs number of epochs")
-        plt.plot(range(1, epochs+1), train_loss, label='Training loss')
-        plt.plot(range(1, epochs+1), val_loss, label='Validation loss')
+    def plot_graph(train, val, epochs, save_path, kind):
+        # Plot results
+        if kind == 'loss':
+            title = "Training/Validation Loss vs number of epochs"
+            label = "Loss"
+        else:
+            title = "Training/Validation Accuracy vs number of epochs"
+            label = "Accuracy"
+
+        plt.title(title)
+        plt.plot(range(1, epochs+1), train, label='Training ' + kind)
+        plt.plot(range(1, epochs+1), val, label='Validation ' + kind)
         plt.xlabel("Epochs")
-        plt.ylabel("Loss")
+        plt.ylabel(label)
         plt.legend(frameon=False)
-        save_path_loss = os.path.normpath(os.path.join(save_path, 'loss.png'))
+        save_path_loss = os.path.normpath(os.path.join(save_path, kind+'.png'))
         plt.savefig(save_path_loss, dpi=300)
-        # Plot results accuracy
-        plt.title("Training/Validation Accuracy vs number of epochs")
-        plt.plot(range(1, epochs+1), train_acc, label='Training acc')
-        plt.plot(range(1, epochs+1), val_acc, label='Validation acc')
-        plt.xlabel("Epochs")
-        plt.ylabel("Accuracy")
-        plt.legend(frameon=False)
-        save_path_acc = os.path.normpath(os.path.join(save_path, 'acc.png'))
-        plt.savefig(save_path_acc, dpi=300)
+        plt.close()
 
     def confussion_matrix(self, dataset, num_classes, tag):
         # Confusion matrix
