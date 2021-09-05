@@ -66,7 +66,7 @@ class Report:
             doc.append(logs)
 
         doc.append(Command('newpage'))
-        
+
         with doc.create(Section('Información sobre la red')):
             with doc.create(Figure(position='h!')) as net:
                 doc.append(Command('includegraphics', options=['width=12cm', 'height=22cm',
