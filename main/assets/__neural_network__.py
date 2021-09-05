@@ -379,8 +379,9 @@ class NeuralNetwork(object):
                         self.epochs, self.save_path)
 
         # Confussion matrix
+        tag = params['Number of images per class'].keys()
         self.confussion_matrix(dataloaders['test'], num_classes,
-                               params['Number of images per class'])
+                               tag)
         # Generate report
         # Model layers graph
         print(self.model)
@@ -440,8 +441,7 @@ class NeuralNetwork(object):
 
         cf_matrix = confusion_matrix.numpy()
 
-        df_cm = pd.DataFrame(cf_matrix, index=[i for i in range(tag)],
-                             columns=[i for i in range(tag)])
+        df_cm = pd.DataFrame(cf_matrix, index=tag, columns=tag)
         plt.figure(figsize=(12, 7))
         sns.heatmap(df_cm, annot=True)
         save_path_cfm = os.path.normpath(os.path.join(self.save_path, 'confusion.png'))
