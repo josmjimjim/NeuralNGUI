@@ -1,10 +1,11 @@
-import os, argparse
+import os, argparse, time
 import torch
 # from torchviz import make_dot
 import pandas as pd
 import seaborn as sns
 from torch import nn
-from collections import Counter, OrderedDict
+from torch.optim.lr_scheduler import ReduceLROnPlateau
+from collections import Counter
 from torchvision import transforms, datasets, models
 import matplotlib.pyplot as plt
 # from _pdf_report_ import Report
@@ -125,8 +126,8 @@ class NeuralNetwork(object):
         }
 
         print('Dataset load and nomalized: Completed\n',
-              'Dataset statistics:\n',
-              '===================\n',
+              '\tDataset statistics:\n',
+              '\t--------------------\n',
               '\tNumber of images {}\n'.format(data_len),
               '\tNumber of classes: {}\n'.format(num_class),
               '\tNumber of classe-images:\n{}\n'.format(count),
@@ -140,6 +141,8 @@ class NeuralNetwork(object):
         nums= Counter(data.targets)
         data_id = data.class_to_idx
         data_count = dict(zip(data_id.keys(), nums.values()))
+        data_count = pd.DataFrame.from_dict(data_count, orient='index',
+                       columns=['Number of images'])
         data_len = len(data)
         return data_count, data_len
 
@@ -151,13 +154,15 @@ class NeuralNetwork(object):
     def set_parameter_requires_grad(self):
         if self.weights_path:
             self.model.load_state_dict(torch.load(self.weights_path))
+            print('Model status: Pretrained')
             for param in self.model.parameters():
                 param.requires_grad = False
+        else:
+            print('Model status: Not Pretrained')
 
     def select_model(self, num_classes):
-
+        # Get model name from __init__
         name = self.model_name
-
         # Check model selected
         if name == r'resnet18':
             self.model = models.resnet18()
@@ -226,17 +231,13 @@ class NeuralNetwork(object):
         else:
             self.model = None
 
-
-        print('Model: {}\nModel status: Not Pretrained'.format(name))
+        print('Model selected: {}'.format(name))
 
     def select_optimizer(self):
-        opt_name, lr = self.optimizer_name, self.lr
 
-        # Gather the parameters to be optimized/updated in this run. If we are
-        #  finetuning we will be updating all parameters. However, if we are
-        #  doing feature extract method, we will only update the parameters
-        #  that we have just initialized, i.e. the parameters with requires_grad
-        #  is True.
+        # Get optimizer name and initial learning rate
+        opt_name, lr = self.optimizer_name, self.lr
+        # Gather information about parameters to update
         params_to_update = self.model.parameters()
         print("Params to learn:")
         if self.weights_path:
@@ -270,52 +271,55 @@ class NeuralNetwork(object):
         return optimizer
 
     def train_model(self, device='cpu'):
+
         # Check image size from dict of inputs
         img_size = self.__dict_in[self.model_name]
         
-        # Define/calculate parameters
+        # Define epoch/load dataset and params
+        since = time.time()
         dataloaders, params = self.load_normalized_datset(img_size=img_size)
+        time_elapsed = time.time() - since
+        print('Dataset loaded in {:.0f}m {:.0f}s'.format(time_elapsed // 60, time_elapsed % 60))
         epochs = self.epochs
 
-        # Define parameters
+        # Get number of classe and set up time
         num_classes = params['Number of classes']
+        since = time.time()
 
+        # Select model and transfer it to device (cpu or cuda)
         self.select_model(num_classes)
         self.model.to(device)
 
-
+        # Set up optimizer/criterion and update learning rate
         optimizer = self.select_optimizer()
         criterion = nn.CrossEntropyLoss()
+        scheduler = ReduceLROnPlateau(optimizer, 'min')
 
+        # Initialize variables
         val_acc_history = []
-
         best_model_wts = copy.deepcopy(self.model.state_dict())
         best_acc = 0.0
 
         for j in range(epochs):
-
             # Each epoch has a training and validation phase
             for phase in ['train', 'test']:
                 if phase == 'train':
                     self.model.train()  # Set model to training mode
                 else:
                     self.model.eval()  # Set model to evaluate mode
-
+                # Initialize variables for each phase
                 running_loss = 0.0
                 running_corrects = 0
-
+                #Iterate over dataset
                 for inputs, labels in dataloaders[phase]:
-
+                    #Transfer inputs/labels to device (cpu or cuda)
                     inputs, labels = inputs.to(device), labels.to(device)
-
                     # zero the parameter gradients
                     optimizer.zero_grad()
-
-                    # forward
-                    # track history if only in train
+                    # forward and track history if only in train
                     with torch.set_grad_enabled(phase == 'train'):
+                        # Inception model has aux layer
                         if self.model_name == 'inceptionv3' and phase == 'train':
-                            # From https://discuss.pytorch.org/t/how-to-optimize-inception-model-with-auxiliary-classifiers/7958
                             outputs, aux_outputs = self.model(inputs)
                             loss1 = criterion(outputs, labels)
                             loss2 = criterion(aux_outputs, labels)
@@ -323,37 +327,45 @@ class NeuralNetwork(object):
                         else:
                             outputs = self.model(inputs)
                             loss = criterion(outputs, labels)
-
                         _, preds = torch.max(outputs, 1)
-
                         # backward + optimize only if in training phase
                         if phase == 'train':
                             loss.backward()
                             optimizer.step()
-
                     # statistics
                     running_loss += loss.item() * inputs.size(0)
                     running_corrects += torch.sum(preds == labels.data)
-
+                # Calculate loss and accuracy for each phase
                 epoch_loss = running_loss / len(dataloaders[phase].dataset)
                 epoch_acc = running_corrects.double() / len(dataloaders[phase].dataset)
-
+                # Print statistics of process
+                if phase == 'train':
+                    print('Epoch: {}/{}\n'.format(j + 1, epochs),
+                          10 * '-', '\n',
+                          '\tTrain Loss: {:.3f} '.format(epoch_loss),
+                          '\tTrain Accuracy: {:.3f} '.format(epoch_acc),
+                          )
+                else:
+                    print('\tVal Loss: {:.3f} '.format(epoch_loss),
+                          '\tVal Accuracy: {:.3f} '.format(epoch_acc),
+                          )
                 # deep copy the model
                 if phase == 'test' and epoch_acc > best_acc:
                     best_acc = epoch_acc
                     best_model_wts = copy.deepcopy(self.model.state_dict())
                 if phase == 'test':
                     val_acc_history.append(epoch_acc)
+                    scheduler.step(epoch_loss)
 
-            print('Epoch: {}/{} '.format(j + 1, epochs),
-                  '\tTraining Loss: {:.3f} '.format(epoch_loss),
-                  '\tTraining Accuracy: {:.3f} '.format(epoch_acc),
-                  )
+        time_elapsed = time.time() - since
+        print('Training complete in {:.0f}m {:.0f}s'.format(time_elapsed // 60, time_elapsed % 60))
+        print('Best val Acc: {:4f}'.format(best_acc))
+
 
         # Save
         model_path = os.path.normpath(os.path.join(self.save_path,
                                                    self.model_name + '.pth'))
-        torch.save(self.model.state_dict(), model_path)
+        torch.save(best_model_wts, model_path)
 
         # Plot results
         #plt.plot(epochs_list, running_loss_list, label='Training loss')
@@ -415,7 +427,7 @@ if __name__ == '__main__':
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(device)
-    neural = NeuralNetwork('resnet18', 'SGD', 12,
+    neural = NeuralNetwork('inceptionv3', 'SGD', 12,
                       2, 0.001, '/Users/josemjimenez/Desktop/11',
                       '/Users/josemjimenez/Desktop/NeuralNGUI/NeuralNGUI_main/train',
                       '/Users/josemjimenez/Desktop/NeuralNGUI/NeuralNGUI_main/test', None
