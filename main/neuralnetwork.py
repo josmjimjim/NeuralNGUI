@@ -1,40 +1,26 @@
-import os, argparse
-import io
+import os, argparse, time, copy
 import torch
 from torchviz import make_dot
 import pandas as pd
 import seaborn as sns
 from torch import nn
-from collections import Counter, OrderedDict
+from torch.optim.lr_scheduler import ReduceLROnPlateau
+from collections import Counter
 from torchvision import transforms, datasets, models
 import matplotlib.pyplot as plt
 from _pdf_report_ import Report
 
+
 class NeuralNetwork(object):
-
     # Dictionary of classifier parameters
-    __dict_cp = {
-        'resnet18': (512, 128),
-        'alexnet': (9216, 4096),
-        'vgg16': (25088, 4096),
-        'resnet34': (512, 128),
-        'inceptionv3': (2048, 512),
-        'vgg19': (25088, 4096),
-        'mobilenetv2': (1280, 320),
-        'mobilenetv3large': (960, 240),
-        'mobilenetv3small': (576, 144),
-        'resnet152': (2048, 512),
-        'wideresnet50': (2048, 512),
-        'mnasnet': (1280, 320),
+    __dict_in = {
+        'resnet18': 224, 'alexnet': 224,
+        'vgg16': 224, 'resnet34': 224,
+        'inceptionv3': 299, 'vgg19': 224,
+        'mobilenetv2': 224, 'mobilenetv3large': 224,
+        'mobilenetv3small': 224, 'resnet152': 224,
+        'wideresnet50': 224, 'mnasnet': 224,
     }
-
-    # Tuple with classifier definitions
-    __dict_fc = ('resnet18', 'inceptionv3', 'resnet34',
-                'resnet152', 'wideresnet50')
-
-    __dict_clsf = ('alexnet', 'vgg16',
-                   'mobilenetv2', 'mobilenet_v3_large',
-                   'mobilenetv3small', 'mnasnet', 'vgg19')
 
     def __init__(self, model_name, optimizer_name,
                  batch_size, epochs, lr=0.001, save_path=None,
@@ -55,8 +41,8 @@ class NeuralNetwork(object):
     def transform_images(self, image_size, mean=(0, 0, 0), std=(1, 1, 1)):
         # Define transformations: 1 to tensor and 2 normalize
         transform_list = [transforms.Resize(image_size),
-            transforms.ToTensor(),
-            transforms.Normalize(mean, std)]
+                          transforms.ToTensor(),
+                          transforms.Normalize(mean, std)]
 
         # Define transform function with a list of parameters
         transform = transforms.Compose(transform_list)
@@ -70,7 +56,7 @@ class NeuralNetwork(object):
             train_data = datasets.ImageFolder(self.train_path, transform=tform)
             # Number of train data
             count, data_len = self.getnumber_imagesdataset(train_data)
-            num_class, class_idx = self.getnumber_classes(train_data)
+            num_class = self.getnumber_classes(train_data)
 
             if self.test_path is not None:
                 test_data = datasets.ImageFolder(self.test_path, transform=tform)
@@ -88,18 +74,17 @@ class NeuralNetwork(object):
 
             # Load data as iterable
             train_loader = torch.utils.data.DataLoader(train_data, batch_size=self.batch_size,
-                                                shuffle=True, num_workers=2)
+                                                       shuffle=True, num_workers=2)
             test_loader = torch.utils.data.DataLoader(test_data, batch_size=self.batch_size,
-                                                shuffle=True, num_workers=2)
-
+                                                      shuffle=True, num_workers=2)
 
             # Dict of loader
             __dict_loader = {
-                'TrainLoader': train_loader,
-                'TestLoader': test_loader,
-                }
+                'train': train_loader,
+                'test': test_loader,
+            }
 
-            return __dict_loader, count, data_len, num_class, class_idx
+            return __dict_loader, count, data_len, num_class
 
         except FileNotFoundError:
             return None, None, None, None
@@ -108,11 +93,11 @@ class NeuralNetwork(object):
         # Store pixel sum, square pixel sum, and num of batches
         psum, psum_sq, num_batches = 0, 0, 0
         # For loop through images loaded
-        image_loader = image_loader['TrainLoader']
+        image_loader = image_loader['train']
         try:
             for inputs, _ in image_loader:
-                psum += torch.mean(inputs, dim = [0, 2, 3])
-                psum_sq += torch.mean(inputs**2, dim = [0, 2, 3])
+                psum += torch.mean(inputs, dim=[0, 2, 3])
+                psum_sq += torch.mean(inputs ** 2, dim=[0, 2, 3])
                 num_batches += 1
             # Compute mean and std of dataset
             total_mean = psum / num_batches
@@ -127,288 +112,339 @@ class NeuralNetwork(object):
 
     def load_normalized_datset(self, img_size=224):
         tform = self.transform_images(img_size)
-        img, _, _, _, _ = self.load_dataset(tform)
+        img, _, _, _ = self.load_dataset(tform)
         mean, std = self.compute_mean_std(img)
         tform = self.transform_images(img_size, mean=mean, std=std)
-        image_loader, count, data_len, num_class, class_idx = self.load_dataset(tform)
+        image_loader, count, data_len, num_class = self.load_dataset(tform)
+        mean = tuple(map(lambda x: isinstance(x, float) and round(x, 3) or x, mean))
+        std = tuple(map(lambda x: isinstance(x, float) and round(x, 3) or x, std))
         # Dictionary with parameters
         __dict_load = {
             'Number of images in dataset': data_len,
             'Number of images per class': count,
             'Number of classes': num_class,
-            'Class idx': class_idx,
             'Mean': mean, 'Std': std,
         }
 
         print('Dataset load and nomalized: Completed\n',
-              'Dataset statistics:\n',
-              '===================\n',
+              '\tDataset statistics:\n',
+              '\t--------------------\n',
               '\tNumber of images {}\n'.format(data_len),
               '\tNumber of classes: {}\n'.format(num_class),
               '\tNumber of classe-images:\n{}\n'.format(count),
               '\tDataset mean: {}\n'.format(mean),
               '\tDataset std: {}\n'.format(std),
-              '\tClass id: {}\n'.format(class_idx),
               )
         return image_loader, __dict_load
 
     @staticmethod
     def getnumber_imagesdataset(data):
-        data_count = Counter(data.targets)
-        data_len = sum(data_count)
+        nums = Counter(data.targets)
+        data_id = data.class_to_idx
+        data_count = dict(zip(data_id.keys(), nums.values()))
+        data_count = pd.DataFrame.from_dict(data_count, orient='index',
+                                            columns=['Number of images'])
+        data_len = len(data)
         return data_count, data_len
 
     @staticmethod
     def getnumber_classes(data):
         data_count = len(data.classes)
-        data_id = data.class_to_idx
-        return data_count, data_id
+        return data_count
 
-    def select_model(self):
+    def set_parameter_requires_grad(self):
+        if self.weights_path:
+            self.model.load_state_dict(torch.load(self.weights_path))
+            print('Model status: Pretrained')
+            for param in self.model.parameters():
+                param.requires_grad = False
+        else:
+            print('Model status: Not Pretrained')
 
+    def select_model(self, num_classes):
+        # Get model name from __init__
         name = self.model_name
-
         # Check model selected
         if name == r'resnet18':
             self.model = models.resnet18()
-        elif name == r'alexnet':
-            self.model = models.alexnet()
-        elif name == r'vgg16':
-            self.model = models.vgg16()
+            self.set_parameter_requires_grad()
+            num_ftrs = self.model.fc.in_features
+            self.model.fc = nn.Linear(num_ftrs, num_classes)
         elif name == r'resnet34':
             self.model = models.resnet34()
-        elif name == r'inceptionv3':
-            self.model = models.inception_v3()
-        elif name == r'vgg19':
-            self.model = models.vgg19()
-        elif name == r'mobilenetv2':
-            self.model = models.mobilenet_v2()
-        elif name == r'mobilenetv3large':
-            self.model = models.mobilenet_v3_large()
-        elif name == r'mobilenetv3small':
-            self.model = models.mobilenet_v3_small()
+            self.set_parameter_requires_grad()
+            num_ftrs = self.model.fc.in_features
+            self.model.fc = nn.Linear(num_ftrs, num_classes)
         elif name == r'resnet152':
             self.model = models.resnet152()
+            self.set_parameter_requires_grad()
+            num_ftrs = self.model.fc.in_features
+            self.model.fc = nn.Linear(num_ftrs, num_classes)
+        elif name == r'alexnet':
+            self.model = models.alexnet()
+            self.set_parameter_requires_grad()
+            num_ftrs = self.model.classifier[6].in_features
+            self.model.classifier[6] = nn.Linear(num_ftrs, num_classes)
+        elif name == r'vgg16':
+            self.model = models.vgg16()
+            self.set_parameter_requires_grad()
+            num_ftrs = self.model.classifier[6].in_features
+            self.model.classifier[6] = nn.Linear(num_ftrs, num_classes)
+        elif name == r'vgg19':
+            self.model = models.vgg19()
+            self.set_parameter_requires_grad()
+            num_ftrs = self.model.classifier[6].in_features
+            self.model.classifier[6] = nn.Linear(num_ftrs, num_classes)
+        elif name == r'inceptionv3':
+            self.model = models.inception_v3()
+            self.set_parameter_requires_grad()
+            # Handle the auxilary net
+            num_ftrs = self.model.AuxLogits.fc.in_features
+            self.model.AuxLogits.fc = nn.Linear(num_ftrs, num_classes)
+            # Handle the primary net
+            num_ftrs = self.model.fc.in_features
+            self.model.fc = nn.Linear(num_ftrs, num_classes)
+        elif name == r'mobilenetv2':
+            self.model = models.mobilenet_v2()
+            self.set_parameter_requires_grad()
+            num_ftrs = self.model.classifier[1].in_features
+            self.model.classifier[1] = nn.Linear(num_ftrs, num_classes)
+        elif name == r'mobilenetv3large':
+            self.model = models.mobilenet_v3_large()
+            self.set_parameter_requires_grad()
+            num_ftrs = self.model.classifier[3].in_features
+            self.model.classifier[3] = nn.Linear(num_ftrs, num_classes)
+        elif name == r'mobilenetv3small':
+            self.model = models.mobilenet_v3_small()
+            self.set_parameter_requires_grad()
+            num_ftrs = self.model.classifier[3].in_features
+            self.model.classifier[3] = nn.Linear(num_ftrs, num_classes)
         elif name == r'wideresnet50':
             self.model = models.wide_resnet50_2()
+            self.set_parameter_requires_grad()
+            num_ftrs = self.model.fc.in_features
+            self.model.fc = nn.Linear(num_ftrs, num_classes)
         elif name == r'mnasnet':
             self.model = models.mnasnet1_0()
+            self.set_parameter_requires_grad()
+            num_ftrs = self.model.classifier[1].in_features
+            self.model.classifier[1] = nn.Linear(num_ftrs, num_classes)
         else:
             self.model = None
 
-        model_dict = self.model.state_dict()
-
-        if self.weights_path:
-            if name not in('inceptionv3',):
-                with open(self.weights_path, 'rb') as f:
-                    buffer = io.BytesIO(f.read())
-                    buffer.seek(0)
-                    f.close()
-                # Filter prameters
-                pretrained_dict = torch.load(buffer)
-                pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
-                buffer.close()
-                # Overwrite entries in the existing state dict
-                model_dict.update(pretrained_dict)
-                # Load the new state dict
-                self.model.load_state_dict(model_dict)
-
-                for param in self.model.parameters():
-                    param.requires_grad = False
-                print('Model: {}\nModel status: Pretrained'.format(name))
-        else:
-            print('Model: {}\nModel status: Not Pretrained'.format(name))
-
-    def model_classifier(self, num_class):
-        # Define the last layer of the classifier or model
-        # Check model selected is fc or clssifier
-        name = self.model_name
-        try:
-            num1, num2 = self.__dict_cp[name]
-
-            classifier = nn.Sequential(OrderedDict([('fc1', nn.Linear(num1, num2, bias=True)),
-                                                    ('relu1', nn.ReLU(inplace=True)),
-                                                    ('drop1', nn.Dropout(p=0.5, inplace=False)),
-                                                    ('fc2', nn.Linear(num2, num2, bias=True)),
-                                                    ('relu2', nn.ReLU(inplace=True)),
-                                                    ('drop2', nn.Dropout(p=0.5, inplace=False)),
-                                                    ('fc3', nn.Linear(num2, num_class, bias=True)),
-                                                    ('output', nn.LogSoftmax(dim=1)),
-                                                    ]))
-
-            if name in self.__dict_fc:
-                self.model.fc = classifier
-                if name == 'inceptionv3':
-                    self.model.AuxLogits.fc = nn.Sequential(
-                        OrderedDict([('fc1', nn.Linear(768, num_class)),
-                                     ('output', nn.LogSoftmax(dim=1)),
-                                     ]))
-            elif name in self.__dict_clsf:
-                self.model.classifier = classifier
-            else:
-                self.model = None
-
-            print('Set up classifier')
-
-        except Exception:
-            self.model = None
+        print('Model selected: {}'.format(name))
 
     def select_optimizer(self):
-        optim = self.model
+
+        # Get optimizer name and initial learning rate
         opt_name, lr = self.optimizer_name, self.lr
+        # Gather information about parameters to update
+        params_to_update = self.model.parameters()
+        print("Params to learn:")
+        if self.weights_path:
+            params_to_update = []
+            for name, param in self.model.named_parameters():
+                if param.requires_grad == True:
+                    params_to_update.append(param)
+                    print("\t", name)
+        else:
+            for name, param in self.model.named_parameters():
+                if param.requires_grad == True:
+                    print("\t", name)
 
         # Select optimizer by name
         if opt_name == 'Adam':
-            optimizer = torch.optim.Adam(optim.parameters(), lr=lr)
+            optimizer = torch.optim.Adam(params_to_update, lr=lr)
         elif opt_name == 'SGD':
-            optimizer = torch.optim.SGD(optim.parameters(), lr=lr)
+            optimizer = torch.optim.SGD(params_to_update, lr=lr, momentum=0.9)
         elif opt_name == 'LBFGS':
-            optimizer = torch.optim.LBFGS(optim.parameters(), lr=lr)
+            optimizer = torch.optim.LBFGS(params_to_update, lr=lr)
         elif opt_name == 'SparseAdam':
-            optimizer = torch.optim.SparseAdam(optim.parameters(), lr=lr)
+            optimizer = torch.optim.SparseAdam(params_to_update, lr=lr)
         elif opt_name == 'RMSprop':
-            optimizer = torch.optim.RMSprop(optim.parameters(), lr=lr)
+            optimizer = torch.optim.RMSprop(params_to_update, lr=lr)
         elif opt_name == 'AdamW':
-            optimizer = torch.optim.AdamW(optim.parameters(), lr=lr)
+            optimizer = torch.optim.AdamW(params_to_update, lr=lr)
         else:
             optimizer = None
 
         print('Optimizer: {}'.format(opt_name))
         return optimizer
 
-    def validate_model(self, valid_data, criterion, device):
-
-        val_loss, accuracy = 0, 0
-        y_pred, y_true = [], []
-        # Iterate around all images in validation dataset
-        for img, label in valid_data:
-            img, label = img.to(device), label.to(device)
-
-            output = self.model.forward(img)
-            val_loss += criterion(output, label).item()
-
-            probabilities = torch.exp(output)
-
-            equality = (label.data == probabilities.max(dim=1)[1])
-            accuracy += equality.type(torch.FloatTensor).mean()
-
-        return val_loss, accuracy
-
     def train_model(self, device='cpu'):
-        # Save losses for plotting them
-        running_loss_list, val_loss_list = [], []
-        epochs_list = []
 
-        # Define/calculate parameters
-        steps, running_loss = 0, 0
-        dataset, params = self.load_normalized_datset(img_size=224)
+        # Check image size from dict of inputs
+        img_size = self.__dict_in[self.model_name]
+
+        # Define epoch/load dataset and params
+        since = time.time()
+        dataloaders, params = self.load_normalized_datset(img_size=img_size)
+        time_elapsed = time.time() - since
+        print('Dataset loaded in {:.0f}m {:.0f}s'.format(time_elapsed // 60, time_elapsed % 60))
         epochs = self.epochs
 
-        # Define parameters
-        num_class = params['Number of classes']
-        train_dataset = dataset['TrainLoader']
-        valid_dataset = dataset['TestLoader']
+        # Get number of classe and set up time
+        num_classes = params['Number of classes']
+        since = time.time()
 
-        self.select_model()
-        self.model_classifier(num_class)
+        # Select model and transfer it to device (cpu or cuda)
+        self.select_model(num_classes)
         self.model.to(device)
+
+        # Set up optimizer/criterion and update learning rate
         optimizer = self.select_optimizer()
-        criterion = nn.NLLLoss()
+        criterion = nn.CrossEntropyLoss()
+        scheduler = ReduceLROnPlateau(optimizer, 'min')
+
+        # Initialize variables
+        train_loss_history, val_loss_history = [], []
+        train_acc_history, val_acc_history = [], []
+        best_model_wts = copy.deepcopy(self.model.state_dict())
+        best_acc = 0.0
 
         for j in range(epochs):
-            self.model.train()
-            for img, label in train_dataset:
-                steps += 1
-                img, label = img.to(device), label.to(device)
+            # Each epoch has a training and validation phase
+            for phase in ['train', 'test']:
+                if phase == 'train':
+                    self.model.train()  # Set model to training mode
+                else:
+                    self.model.eval()  # Set model to evaluate mode
+                # Initialize variables for each phase
+                running_loss = 0.0
+                running_corrects = 0
+                # Iterate over dataset
+                for inputs, labels in dataloaders[phase]:
+                    # Transfer inputs/labels to device (cpu or cuda)
+                    inputs, labels = inputs.to(device), labels.to(device)
+                    # zero the parameter gradients
+                    optimizer.zero_grad()
+                    # forward and track history if only in train
+                    with torch.set_grad_enabled(phase == 'train'):
+                        # Inception model has aux layer
+                        if self.model_name == 'inceptionv3' and phase == 'train':
+                            outputs, aux_outputs = self.model(inputs)
+                            loss1 = criterion(outputs, labels)
+                            loss2 = criterion(aux_outputs, labels)
+                            loss = loss1 + 0.4 * loss2
+                        else:
+                            outputs = self.model(inputs)
+                            loss = criterion(outputs, labels)
+                        _, preds = torch.max(outputs, 1)
+                        # backward + optimize only if in training phase
+                        if phase == 'train':
+                            loss.backward()
+                            optimizer.step()
+                    # statistics
+                    running_loss += loss.item() * inputs.size(0)
+                    running_corrects += torch.sum(preds == labels.data)
+                # Calculate loss and accuracy for each phase
+                epoch_loss = running_loss / len(dataloaders[phase].dataset)
+                epoch_acc = running_corrects.double() / len(dataloaders[phase].dataset)
+                # Print statistics of process and store them
+                if phase == 'train':
+                    train_acc_history.append(epoch_acc)
+                    train_loss_history.append(epoch_loss)
+                    print('Epoch: {}/{}\n'.format(j + 1, epochs),
+                          10 * '-', '\n',
+                          '\tTrain Loss: {:.3f} '.format(epoch_loss),
+                          '\tTrain Accuracy: {:.3f} '.format(epoch_acc),
+                          )
+                else:
+                    val_acc_history.append(epoch_acc)
+                    val_loss_history.append(epoch_loss)
+                    print('\tVal Loss: {:.3f} '.format(epoch_loss),
+                          '\tVal Accuracy: {:.3f} '.format(epoch_acc),
+                          )
+                    # Update learning rate
+                    scheduler.step(epoch_loss)
+                # deep copy the model
+                if phase == 'test' and epoch_acc > best_acc:
+                    best_acc = epoch_acc
+                    best_model_wts = copy.deepcopy(self.model.state_dict())
 
-                optimizer.zero_grad()
-
-                output = self.model.forward(img)
-                loss = criterion(output, label)
-                loss.backward()
-                optimizer.step()
-
-                running_loss += loss.item()
-
-            # Validate model with not grad for speed
-            self.model.eval()
-
-            with torch.no_grad():
-                val_loss, accuracy = self.validate_model(valid_dataset, criterion, device)
-                val_loss_list.append(val_loss / len(valid_dataset))
-
-            running_loss_list.append(running_loss / steps)
-
-            print('Epoch: {}/{} '.format(j + 1, epochs),
-                  '\tTraining Loss: {:.3f} '.format(running_loss / steps),
-                  '\tValidation Loss: {:.3f} '.format(val_loss / len(valid_dataset)),
-                  '\tValidation Accuracy: {:.3f} '.format(accuracy / len(valid_dataset)),
-                  )
-
-            running_loss, steps = 0, 0
-
-            epochs_list.append(j)
-
-        print('Test Accuracy of the model: {:.6f} %'
-              .format(100 * accuracy/len(valid_dataset)))
+        time_elapsed = time.time() - since
+        print('Training complete in {:.0f}m {:.0f}s'.format(time_elapsed // 60, time_elapsed % 60))
+        print('Best val Acc: {:4f}'.format(best_acc))
 
         # Save
         model_path = os.path.normpath(os.path.join(self.save_path,
-                                                  self.model_name + '.pth'))
-        torch.save(self.model.state_dict(), model_path)
+                                                   self.model_name + '.pth'))
+        torch.save(best_model_wts, model_path)
 
         # Plot results
-        plt.plot(epochs_list, running_loss_list, label='Training loss')
-        plt.plot(epochs_list, val_loss_list, label='Validation loss')
-        plt.xlabel("Epochs")
-        plt.ylabel("Loss")
-        plt.legend(frameon=False)
-        save_path_loss = os.path.normpath(os.path.join(self.save_path, 'loss.png'))
-        plt.savefig(save_path_loss, dpi=300)
+        self.plot_graph(train_loss_history, val_loss_history,
+                        self.epochs, self.save_path, 'loss')
+        self.plot_graph(train_acc_history, val_acc_history,
+                        self.epochs, self.save_path, 'acc')
 
+        # Confussion matrix
+        tag = params['Number of images per class'].index
+        self.confussion_matrix(dataloaders['test'], num_classes, tag)
+
+        # Model layers graph
+        self.net_architecture()
+        print(self.model)
+
+        # Generate report
+        self.training_report(params, self.save_path)
+
+    @staticmethod
+    def training_report(param, save_path):
+        elements = ('net.png', 'loss.png', 'acc.png',
+                    'confusion.png', 'report', 'log.txt')
+        path_list = []
+        for i in elements:
+            path_list.append(os.path.normpath(os.path.join(save_path, i)))
+
+        report = Report(param, path_list[0], path_list[1], path_list[2],
+                        path_list[3], path_list[4], path_list[5])
+        report.generate_report()
+        pass
+
+    @staticmethod
+    def plot_graph(train, val, epochs, save_path, kind):
+        # Plot results
+        if kind == 'loss':
+            title = "Training/Validation Loss vs number of epochs"
+            label = "Loss"
+        else:
+            title = "Training/Validation Accuracy vs number of epochs"
+            label = "Accuracy"
+
+        plt.title(title)
+        plt.plot(range(1, epochs + 1), train, label='Training ' + kind)
+        plt.plot(range(1, epochs + 1), val, label='Validation ' + kind)
+        plt.xlabel("Epochs")
+        plt.ylabel(label)
+        plt.legend(frameon=False)
+        save_path_loss = os.path.normpath(os.path.join(save_path, kind + '.png'))
+        plt.savefig(save_path_loss, dpi=300)
+        plt.close()
+
+    def confussion_matrix(self, dataset, num_classes, tag):
         # Confusion matrix
-        confusion_matrix = torch.zeros(num_class, num_class)
+        confusion_matrix = torch.zeros(num_classes, num_classes)
         with torch.no_grad():
-            for i, (inputs, classes) in enumerate(valid_dataset):
-                inputs = inputs.to(device)
-                classes = classes.to(device)
+            for i, (inputs, labels) in enumerate(dataset):
+                inputs, labels = inputs.to(device), labels.to(device)
                 outputs = self.model(inputs)
                 _, preds = torch.max(outputs, 1)
-                for t, p in zip(classes.view(-1), preds.view(-1)):
+                for t, p in zip(labels.view(-1), preds.view(-1)):
                     confusion_matrix[t.long(), p.long()] += 1
-
         cf_matrix = confusion_matrix.numpy()
-        
-        df_cm = pd.DataFrame(cf_matrix, index = [i for i in range(num_class)],
-                     columns = [i for i in range(num_class)])
+        df_cm = pd.DataFrame(cf_matrix, index=tag, columns=tag)
+        df_cm = df_cm.div(df_cm.sum(axis=1), axis=0)
         plt.figure(figsize=(12, 7))
         sns.heatmap(df_cm, annot=True)
         save_path_cfm = os.path.normpath(os.path.join(self.save_path, 'confusion.png'))
         plt.savefig(save_path_cfm, dpi=300)
 
-        # Generate report
-        #Model layers graph
-        print(self.model)
-
+    def net_architecture(self):
         save_path_net = os.path.normpath(os.path.join(self.save_path, 'net'))
         batch = torch.rand(1, 3, 224, 224)
         yhat = self.model(batch)
-        make_dot(yhat,
-        params=dict(list(self.model.named_parameters())
-                    )).render(save_path_net, format="png")
-
-        model_layer = save_path_net + '.png'
-
-        save_path_pdf = os.path.normpath(os.path.join(self.save_path, 'report'))
-        log_path = os.path.normpath(os.path.join(self.save_path, 'log.txt'))
-        self.training_report(params, model_layer,
-                    save_path_loss, save_path_cfm,
-                    save_path_pdf, log_path)
-
-    @staticmethod
-    def training_report(param, model, img_path1, img_path2, pdf_path, log):
-        report = Report(param, model, img_path1, img_path2, pdf_path, log)
-        report.generate_report()
+        make_dot(yhat, params=dict(list(
+            self.model.named_parameters()))).render(save_path_net, format="png")
 
 
 if __name__ == '__main__':
