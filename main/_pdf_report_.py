@@ -3,11 +3,12 @@ from pylatex.utils import NoEscape
 
 class Report:
 
-    def __init__(self, param, model, img_path1, img_path2, pdf, log):
+    def __init__(self, param, model, img_path1, img_path2, img_path3, pdf, log):
         self.param = param
         self.model = model
         self.img_path1 = img_path1
         self.img_path2 = img_path2
+        self.img_path3 = img_path3
         self.pdf = pdf
         self.log = log
 
@@ -41,7 +42,6 @@ class Report:
                         tabular.add_row((r'Desviación estandar', self.param['Std']))
                         tabular.add_row((r'Media del dataset', self.param['Mean']))
                         tabular.add_row((r'Número de imágenes por clases', self.param['Number of images per class']))
-                        tabular.add_row((r'Identificación de las clases', self.param['Class idx']))
                         tabular.add_empty_row()
                         tabular.add_hline()
 
@@ -49,23 +49,29 @@ class Report:
 
             with doc.create(Figure(position='h!')) as loss:
                 loss.add_image(self.img_path1, width=NoEscape(r'0.45\linewidth'))
-                loss.add_caption('Resultados del entrenamiento')
+                loss.add_caption('Resultados del entrenamiento. Pérdida')
+
+            with doc.create(Figure(position='h!')) as acc:
+                acc.add_image(self.img_path2, width=NoEscape(r'0.45\linewidth'))
+                acc.add_caption('Resultados del entrenamiento. Precision')
 
             with doc.create(Figure(position='h!')) as confusion:
-                confusion.add_image(self.img_path2, width=NoEscape(r'0.45\linewidth'))
+                confusion.add_image(self.img_path3, width=NoEscape(r'0.45\linewidth'))
                 confusion.add_caption('Confusion matrix')
-
-        with doc.create(Section('Información sobre la red')):
-
-            with doc.create(Figure(position='h!')) as net:
-                net.add_image(self.model, width=NoEscape(r'0.65\linewidth'))
-                net.add_caption('Estructura de la red')
 
         with doc.create(Section('Log e información del entrenamiento')):
             with open(self.log, 'r') as file:
                 logs = file.read()
                 file.close()
             doc.append(logs)
+
+        doc.append(Command('newpage'))
+
+        with doc.create(Section('Información sobre la red')):
+            with doc.create(Figure(position='h!')) as net:
+                doc.append(Command('includegraphics', options=['width=12cm', 'height=22cm',
+                'keepaspectratio'], arguments=self.model))
+                net.add_caption('Estructura de la red')
 
         try:
             doc.generate_pdf(self.pdf, clean_tex=False, compiler='pdflatex')
