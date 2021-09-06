@@ -294,7 +294,7 @@ class NeuralNetwork(object):
         # Set up optimizer/criterion and update learning rate
         optimizer = self.select_optimizer()
         criterion = nn.CrossEntropyLoss()
-        scheduler = ReduceLROnPlateau(optimizer, 'min')
+        scheduler = ReduceLROnPlateau(optimizer, 'min', verbose=True)
 
         # Initialize variables
         train_loss_history, val_loss_history = [], []
@@ -356,6 +356,7 @@ class NeuralNetwork(object):
                           '\tVal Accuracy: {:.3f} '.format(epoch_acc),
                           )
                     # Update learning rate
+                    print('Learning rate set to:')
                     scheduler.step(epoch_loss)
                 # deep copy the model
                 if phase == 'test' and epoch_acc > best_acc:
