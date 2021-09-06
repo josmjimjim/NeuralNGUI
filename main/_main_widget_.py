@@ -271,11 +271,11 @@ class ExternalProcess(QProcess):
 
 class CentralWidget(QWidget):
 
-    __model_list = ('resnet18', 'inceptionv3','googlenet',
+    __model_list = ('resnet18', 'inceptionv3', 'vgg19'
                     'resnet34', 'resnet152', 'wideresnet50',
                     'alexnet', 'vgg16', 'mobilenetv2',
                     'mobilenet_v3_large','mobilenetv3small',
-                    'mnasnet', 'vgg19',)
+                    'mnasnet',)
     __optim_list = ('Adam', 'AdamW', 'SGD', 'LBFGS',
                     'SparseAdam', 'RMSprop',)
 
